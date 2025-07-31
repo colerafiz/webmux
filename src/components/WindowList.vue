@@ -77,27 +77,30 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
-import { tmuxApi } from '../api/tmux'
+import { tmuxApi } from '@/api/tmux'
+import type { TmuxWindow } from '@/types'
 
-const props = defineProps({
-  sessionName: {
-    type: String,
-    required: true
-  }
-})
+interface Props {
+  sessionName: string
+}
 
-const emit = defineEmits(['select-window', 'refresh'])
+const props = defineProps<Props>()
 
-const windows = ref([])
-const loading = ref(true)
-const error = ref(false)
-const editingWindow = ref(null)
-const editingName = ref('')
-const editInput = ref(null)
+const emit = defineEmits<{
+  'select-window': [window: TmuxWindow]
+  refresh: []
+}>()
 
-const loadWindows = async () => {
+const windows = ref<TmuxWindow[]>([])
+const loading = ref<boolean>(true)
+const error = ref<boolean>(false)
+const editingWindow = ref<TmuxWindow | null>(null)
+const editingName = ref<string>('')
+const editInput = ref<HTMLInputElement | null>(null)
+
+const loadWindows = async (): Promise<void> => {
   try {
     loading.value = true
     error.value = false
@@ -110,7 +113,7 @@ const loadWindows = async () => {
   }
 }
 
-const createWindow = async () => {
+const createWindow = async (): Promise<void> => {
   const name = prompt('Window name (optional):')
   if (name !== null) {
     try {
@@ -123,7 +126,7 @@ const createWindow = async () => {
   }
 }
 
-const killWindow = async (window) => {
+const killWindow = async (window: TmuxWindow): Promise<void> => {
   if (confirm(`Kill window "${window.name}"?`)) {
     try {
       await tmuxApi.killWindow(props.sessionName, window.index)
@@ -135,11 +138,11 @@ const killWindow = async (window) => {
   }
 }
 
-const isEditing = (window) => {
+const isEditing = (window: TmuxWindow): boolean => {
   return editingWindow.value?.index === window.index
 }
 
-const startEdit = (window) => {
+const startEdit = (window: TmuxWindow): void => {
   editingWindow.value = window
   editingName.value = window.name
   nextTick(() => {
@@ -148,7 +151,7 @@ const startEdit = (window) => {
   })
 }
 
-const confirmRename = async (window) => {
+const confirmRename = async (window: TmuxWindow): Promise<void> => {
   if (editingName.value && editingName.value !== window.name) {
     try {
       await tmuxApi.renameWindow(props.sessionName, window.index, editingName.value)
@@ -160,7 +163,7 @@ const confirmRename = async (window) => {
   cancelEdit()
 }
 
-const cancelEdit = () => {
+const cancelEdit = (): void => {
   editingWindow.value = null
   editingName.value = ''
 }

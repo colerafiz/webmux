@@ -96,44 +96,58 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useWebSocket } from './composables/useWebSocket'
 import { tmuxApi } from './api/tmux'
 import SessionList from './components/SessionList.vue'
 import TerminalView from './components/TerminalView.vue'
+import type { TmuxSession, SystemStats, SessionsListMessage, WindowSelectedMessage, TmuxWindow } from './types'
 
 const queryClient = useQueryClient()
-const currentSession = ref(null)
-const sidebarCollapsed = ref(false)
-const windowWidth = ref(window.innerWidth)
+const currentSession = ref<string | null>(null)
+const sidebarCollapsed = ref<boolean>(false)
+const windowWidth = ref<number>(window.innerWidth)
 const ws = useWebSocket()
-const currentTime = ref('')
-const stats = ref({
-  cpu: { loadAvg: [0, 0, 0] },
-  memory: { total: 0, used: 0, percent: '0' },
+const currentTime = ref<string>('')
+const stats = ref<SystemStats>({
+  activeSessions: 0,
+  totalSessions: 0,
   uptime: 0,
+  memoryUsage: 0,
   hostname: '',
   platform: '',
-  arch: ''
+  arch: '',
+  cpu: {
+    model: '',
+    cores: 0,
+    usage: 0,
+    loadAvg: [0, 0, 0]
+  },
+  memory: {
+    total: 0,
+    used: 0,
+    free: 0,
+    percent: 0
+  }
 })
 
 // Mobile detection
 const isMobile = computed(() => windowWidth.value < 768) // md breakpoint
 
 // Fetch system stats
-const fetchStats = async () => {
+const fetchStats = async (): Promise<void> => {
   try {
     const response = await fetch('/api/stats')
-    stats.value = await response.json()
+    stats.value = await response.json() as SystemStats
   } catch (error) {
     console.error('Failed to fetch stats:', error)
   }
 }
 
 // Update clock and stats
-let updateInterval
+let updateInterval: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   // Initialize sidebar state for mobile
   sidebarCollapsed.value = isMobile.value
@@ -161,14 +175,14 @@ onUnmounted(() => {
 })
 
 // Format helpers
-const formatBytes = (bytes) => {
+const formatBytes = (bytes: number): string => {
   if (!bytes) return '0B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
   return `${(bytes / Math.pow(1024, i)).toFixed(1)}${units[i]}`
 }
 
-const formatUptime = (seconds) => {
+const formatUptime = (seconds: number): string => {
   if (!seconds) return '0s'
   const days = Math.floor(seconds / 86400)
   const hours = Math.floor((seconds % 86400) / 3600)
@@ -181,48 +195,51 @@ const formatUptime = (seconds) => {
 const { data: sessions = [], refetch } = useQuery({
   queryKey: ['sessions'],
   queryFn: tmuxApi.getSessions,
-  refetchInterval: 5000
+  refetchInterval: 5000,
+  initialData: [] as TmuxSession[]
 })
 
 
-const handleCreateSession = async (sessionName) => {
+const handleCreateSession = async (sessionName: string): Promise<void> => {
   try {
     const result = await tmuxApi.createSession(sessionName)
-    queryClient.invalidateQueries(['sessions'])
+    queryClient.invalidateQueries({ queryKey: ['sessions'] })
     // Auto-select the new session immediately
-    currentSession.value = result.sessionName
+    if (result && typeof result === 'object' && 'sessionName' in result && typeof result.sessionName === 'string') {
+      currentSession.value = result.sessionName
+    }
   } catch (error) {
     console.error('Failed to create session:', error)
     alert('Failed to create session. It may already exist.')
   }
 }
 
-const handleKillSession = async (sessionName) => {
+const handleKillSession = async (sessionName: string): Promise<void> => {
   try {
     await tmuxApi.killSession(sessionName)
     if (currentSession.value === sessionName) {
       currentSession.value = null
     }
-    queryClient.invalidateQueries(['sessions'])
+    queryClient.invalidateQueries({ queryKey: ['sessions'] })
   } catch (error) {
     console.error('Failed to kill session:', error)
   }
 }
 
-const handleRenameSession = async (sessionName, newName) => {
+const handleRenameSession = async (sessionName: string, newName: string): Promise<void> => {
   try {
     await tmuxApi.renameSession(sessionName, newName)
     if (currentSession.value === sessionName) {
       currentSession.value = newName
     }
-    queryClient.invalidateQueries(['sessions'])
+    queryClient.invalidateQueries({ queryKey: ['sessions'] })
   } catch (error) {
     console.error('Failed to rename session:', error)
     alert('Failed to rename session. The name may already be in use.')
   }
 }
 
-const handleSelectWindow = (sessionName, window) => {
+const handleSelectWindow = (sessionName: string, window: TmuxWindow): void => {
   console.log('Selecting window:', window.index, 'in session:', sessionName)
   
   // If switching to a different session, select it first
@@ -240,11 +257,11 @@ const handleSelectWindow = (sessionName, window) => {
   }
 }
 
-ws.onMessage('sessions-list', (data) => {
+ws.onMessage<SessionsListMessage>('sessions-list', (data) => {
   queryClient.setQueryData(['sessions'], data.sessions)
 })
 
-ws.onMessage('window-selected', (data) => {
+ws.onMessage<WindowSelectedMessage>('window-selected', (data) => {
   if (data.success) {
     console.log('Window selected successfully:', data.windowIndex)
   } else {
@@ -252,12 +269,12 @@ ws.onMessage('window-selected', (data) => {
   }
 })
 
-const toggleSidebar = () => {
+const toggleSidebar = (): void => {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
 // Auto-collapse sidebar on mobile when session is selected
-const selectSession = (sessionName) => {
+const selectSession = (sessionName: string): void => {
   currentSession.value = sessionName
   if (isMobile.value) {
     sidebarCollapsed.value = true

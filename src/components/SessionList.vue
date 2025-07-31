@@ -91,39 +91,42 @@
   </aside>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
 import SessionItem from './SessionItem.vue'
+import type { TmuxSession, TmuxWindow } from '@/types'
 
-defineProps({
-  sessions: {
-    type: Array,
-    default: () => []
-  },
-  currentSession: {
-    type: String,
-    default: null
-  },
-  isCollapsed: {
-    type: Boolean,
-    default: false
-  },
-  isMobile: {
-    type: Boolean,
-    default: false
-  }
+interface Props {
+  sessions: TmuxSession[]
+  currentSession: string | null
+  isCollapsed: boolean
+  isMobile: boolean
+}
+
+withDefaults(defineProps<Props>(), {
+  sessions: () => [],
+  currentSession: null,
+  isCollapsed: false,
+  isMobile: false
 })
 
-const emit = defineEmits(['select', 'refresh', 'kill', 'rename', 'create', 'select-window', 'toggle-sidebar'])
+const emit = defineEmits<{
+  select: [sessionName: string]
+  refresh: []
+  kill: [sessionName: string]
+  rename: [sessionName: string, newName: string]
+  create: [sessionName: string]
+  'select-window': [sessionName: string, window: TmuxWindow]
+  'toggle-sidebar': []
+}>()
 
-const handleCreate = () => {
+const handleCreate = (): void => {
   const sessionName = prompt('Session name:', `s${Date.now().toString().slice(-6)}`)
   if (sessionName) {
     emit('create', sessionName)
   }
 }
 
-const handleKill = (sessionName) => {
+const handleKill = (sessionName: string): void => {
   if (confirm(`Are you sure you want to kill session "${sessionName}"?`)) {
     emit('kill', sessionName)
   }

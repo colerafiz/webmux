@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM"],
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@webmux/types": ["./index.ts"],
+      "@webmux/types/backend": ["./backend.ts"],
+      "@webmux/types/frontend": ["./frontend.ts"]
+    }
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules"]
+}

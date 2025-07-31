@@ -5,5 +5,12 @@
     "cwd": "/home/cyrus/git/swve/webmux",
     "hook_event_name": "UserPromptSubmit",
     "prompt": "can we create a new git repo for this project and called it webmux. Please commit and push everything too"
+  },
+  {
+    "session_id": "d0d60d34-0bfb-4938-8364-070576132d4b",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/d0d60d34-0bfb-4938-8364-070576132d4b.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Can you create a read me for the project please?"
   }
 ]

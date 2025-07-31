@@ -1,0 +1,22 @@
+{
+  "name": "@webmux/types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript type definitions for WebMux",
+  "main": "index.ts",
+  "types": "index.ts",
+  "files": [
+    "*.ts"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.0",
+    "@xterm/xterm": "^5.0.0",
+    "node-pty": "^1.0.0",
+    "typescript": "^5.0.0",
+    "vue": "^3.0.0",
+    "ws": "^8.0.0"
+  }
+}

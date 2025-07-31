@@ -100,38 +100,39 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
 import WindowList from './WindowList.vue'
+import type { TmuxSession, TmuxWindow } from '@/types'
 
-const props = defineProps({
-  session: {
-    type: Object,
-    required: true
-  },
-  isActive: {
-    type: Boolean,
-    default: false
-  },
-  isCollapsed: {
-    type: Boolean,
-    default: false
-  },
-  isMobile: {
-    type: Boolean,
-    default: false
-  }
+interface Props {
+  session: TmuxSession
+  isActive: boolean
+  isCollapsed: boolean
+  isMobile: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  isActive: false,
+  isCollapsed: false,
+  isMobile: false
 })
 
-const emit = defineEmits(['select', 'kill', 'rename', 'select-window', 'refresh'])
+const emit = defineEmits<{
+  select: []
+  kill: []
+  rename: [newName: string]
+  'select-window': [window: TmuxWindow]
+  refresh: []
+}>()
 
-const isEditing = ref(false)
-const editName = ref('')
-const editInput = ref(null)
-const showWindows = ref(false)
-const windowList = ref(null)
+const isEditing = ref<boolean>(false)
+const editName = ref<string>('')
+const editInput = ref<HTMLInputElement | null>(null)
+const showWindows = ref<boolean>(false)
+const windowList = ref<InstanceType<typeof WindowList> | null>(null)
 
-const startEdit = () => {
+const startEdit = (): void => {
   isEditing.value = true
   editName.value = props.session.name
   nextTick(() => {
@@ -140,34 +141,28 @@ const startEdit = () => {
   })
 }
 
-const confirmRename = () => {
+const confirmRename = (): void => {
   if (editName.value && editName.value !== props.session.name) {
     emit('rename', editName.value)
   }
   cancelEdit()
 }
 
-const cancelEdit = () => {
+const cancelEdit = (): void => {
   isEditing.value = false
   editName.value = ''
 }
 
-const formatDate = (date) => {
-  return new Date(date).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  })
-}
+// Removed unused formatDate function
 
-const toggleExpanded = () => {
+const toggleExpanded = (): void => {
   showWindows.value = !showWindows.value
   if (showWindows.value && windowList.value) {
-    nextTick(() => windowList.value.refresh())
+    nextTick(() => windowList.value!.refresh())
   }
 }
 
-const handleSessionClick = () => {
+const handleSessionClick = (): void => {
   if (isEditing.value) return
   
   // Emit select to mark this session as active
@@ -176,7 +171,7 @@ const handleSessionClick = () => {
   // Also expand the session to show windows
   showWindows.value = true
   if (windowList.value) {
-    nextTick(() => windowList.value.refresh())
+    nextTick(() => windowList.value!.refresh())
   }
 }
 
@@ -185,17 +180,17 @@ watch(() => props.isActive, (newVal) => {
   if (newVal && !showWindows.value && !props.isCollapsed) {
     showWindows.value = true
     if (windowList.value) {
-      nextTick(() => windowList.value.refresh())
+      nextTick(() => windowList.value!.refresh())
     }
   }
 })
 
 // Helper function to get session initials
-const getSessionInitials = (name) => {
+const getSessionInitials = (name: string): string => {
   if (!name) return '?'
   const words = name.split(/[-_\s]+/).filter(w => w.length > 0)
   if (words.length === 1) {
-    return words[0].charAt(0).toUpperCase()
+    return words[0]?.charAt(0).toUpperCase() || '?'
   }
   return words.slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('')
 }
