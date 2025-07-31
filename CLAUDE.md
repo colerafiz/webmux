@@ -4,16 +4,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WebMux is a web-based TMUX session viewer that allows users to interact with TMUX sessions through a browser interface. It consists of a Node.js backend server and a Vue 3 frontend application.
+WebMux is a Progressive Web App (PWA) that provides a web-based TMUX session viewer, allowing users to interact with TMUX sessions through a browser interface. It consists of a Node.js backend server and a Vue 3 frontend application with full mobile support and installability.
 
 ## Common Commands
 
 ### Development
 - **Run the development environment**: `npm run dev` (starts both backend server and frontend client concurrently)
+- **Run with HTTPS**: `npm run dev:https` (starts both servers with HTTPS enabled)
 - **Backend server only**: `npm run server` (runs with nodemon for auto-restart)
 - **Frontend client only**: `npm run client` (runs Vite dev server)
+- **Frontend with HTTPS**: `npm run client:https` (runs Vite with HTTPS)
 - **Build for production**: `npm run build`
 - **Preview production build**: `npm run preview`
+
+### HTTPS Setup
+WebMux supports HTTPS with self-signed certificates:
+- **Generate certificates**: `npm run setup-certs` (creates self-signed SSL certificates)
+- **HTTPS ports**: Backend runs on port 3443 (HTTPS) and 3000 (HTTP), Frontend on 5173 (HTTPS)
+- **Accept certificate**: You'll need to accept the self-signed certificate in your browser
+- **Mobile compatibility**: HTTPS is required for many mobile features and secure connections
+
+### Network Access
+The application is configured to accept connections from any network interface:
+- **Local HTTP**: `http://localhost:5173` (frontend) / `http://localhost:3000` (backend)
+- **Local HTTPS**: `https://localhost:5173` (frontend) / `https://localhost:3443` (backend)
+- **Network access**: Use your machine's IP address (e.g., `https://192.168.1.100:5173`)
+- **Tailscale access**: Use your machine's Tailscale IP (e.g., `https://100.x.x.x:5173`)
+
+Both servers bind to `0.0.0.0`, which means they accept connections from all network interfaces.
 
 ### Installation
 - **Install dependencies**: `npm install`
@@ -87,6 +105,15 @@ Common issues and solutions:
 - **Keyboard input not working**: Click in the terminal area to focus it
 - **Session not responding**: Refresh the page and re-select the session
 - **Window switching fails**: Ensure you're attached to the session first
+- **Terminal freezes with large output**: The system now has output buffering and flow control to handle tools like Claude Code that produce lots of output
+
+## Performance Notes
+
+The system includes several optimizations for handling large terminal outputs:
+- **Server-side buffering**: PTY output is buffered and sent in chunks to prevent WebSocket overflow
+- **Flow control**: PTY is paused if WebSocket buffer becomes full, preventing memory issues
+- **Client-side buffering**: Terminal writes are batched for smoother rendering
+- **Debug logging**: High data rate situations are logged to help identify performance issues
 
 ## Development Notes
 

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate PWA Icons</title>
+</head>
+<body>
+    <h1>WebMux PWA Icon Generator</h1>
+    <p>Right-click each canvas and save as PNG with the specified filename.</p>
+    
+    <div>
+        <h3>icon-192.png (192x192)</h3>
+        <canvas id="icon192" width="192" height="192"></canvas>
+    </div>
+    
+    <div>
+        <h3>icon-512.png (512x512)</h3>
+        <canvas id="icon512" width="512" height="512"></canvas>
+    </div>
+    
+    <div>
+        <h3>apple-touch-icon.png (180x180)</h3>
+        <canvas id="apple180" width="180" height="180"></canvas>
+    </div>
+
+    <script>
+        function drawIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Background with rounded corners
+            const radius = size * 0.15;
+            ctx.fillStyle = '#0a0a0a';
+            ctx.beginPath();
+            ctx.moveTo(radius, 0);
+            ctx.lineTo(size - radius, 0);
+            ctx.quadraticCurveTo(size, 0, size, radius);
+            ctx.lineTo(size, size - radius);
+            ctx.quadraticCurveTo(size, size, size - radius, size);
+            ctx.lineTo(radius, size);
+            ctx.quadraticCurveTo(0, size, 0, size - radius);
+            ctx.lineTo(0, radius);
+            ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Terminal prompt
+            ctx.fillStyle = '#10b981';
+            ctx.font = `bold ${size * 0.25}px monospace`;
+            ctx.fillText('$_', size * 0.15, size * 0.5);
+            
+            // Terminal cursor
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(size * 0.55, size * 0.35, size * 0.2, size * 0.05);
+            
+            // Add a subtle border
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = size * 0.02;
+            ctx.stroke();
+        }
+        
+        // Generate all icons
+        drawIcon('icon192', 192);
+        drawIcon('icon512', 512);
+        drawIcon('apple180', 180);
+    </script>
+</body>
+</html>

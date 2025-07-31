@@ -5,6 +5,9 @@ class WebSocketManager {
     this.isConnected = false
     this.messageHandlers = new Map()
     this.connectionPromise = null
+    this.pingInterval = null
+    this.reconnectAttempts = 0
+    this.maxReconnectAttempts = 5
   }
 
   connect() {
@@ -17,16 +20,30 @@ class WebSocketManager {
     }
 
     this.connectionPromise = new Promise((resolve) => {
-      const wsUrl = import.meta.env.DEV 
-        ? 'ws://localhost:3000/ws'
-        : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
+      // Always use the current host for WebSocket connections
+      // This works for localhost, network IPs, and Tailscale IPs
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      let wsUrl
       
+      if (import.meta.env.DEV) {
+        // In development, always use the Vite server's proxy
+        // This ensures mobile connections work through the same port
+        wsUrl = `${protocol}//${window.location.host}/ws`
+      } else {
+        // Production mode - use same host and port as current page
+        wsUrl = `${protocol}//${window.location.host}/ws`
+      }
       this.ws = new WebSocket(wsUrl)
       
       this.ws.onopen = () => {
         this.isConnected = true
         this.connectionPromise = null
+        this.reconnectAttempts = 0
         console.log('WebSocket connected')
+        
+        // Start ping to keep connection alive
+        this.startPing()
+        
         resolve()
       }
       
@@ -40,12 +57,22 @@ class WebSocketManager {
         console.error('WebSocket error:', error)
       }
       
-      this.ws.onclose = () => {
-        console.log('WebSocket disconnected, reconnecting...')
+      this.ws.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason)
         this.isConnected = false
         this.ws = null
         this.connectionPromise = null
-        setTimeout(() => this.connect(), 3000)
+        this.stopPing()
+        
+        // Only reconnect if we haven't exceeded max attempts
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.reconnectAttempts++
+          const delay = event.code === 1000 ? 3000 : 1000; // 1s for errors, 3s for normal close
+          console.log(`Reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`)
+          setTimeout(() => this.connect(), delay)
+        } else {
+          console.error('Max reconnection attempts reached')
+        }
       }
     })
 
@@ -54,9 +81,17 @@ class WebSocketManager {
 
   send(data) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(data))
+      try {
+        this.ws.send(JSON.stringify(data))
+      } catch (err) {
+        console.error('WebSocket send failed:', err)
+        // Force reconnect on send failure
+        this.connect()
+      }
     } else {
       console.warn('WebSocket not connected, message not sent:', data)
+      // Try to reconnect
+      this.connect()
     }
   }
 
@@ -77,7 +112,29 @@ class WebSocketManager {
     }
   }
 
+  startPing() {
+    this.stopPing()
+    this.pingInterval = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        try {
+          this.ws.send(JSON.stringify({ type: 'ping' }))
+        } catch (err) {
+          console.warn('Ping failed:', err)
+          this.connect() // Try to reconnect
+        }
+      }
+    }, 30000) // Ping every 30 seconds
+  }
+  
+  stopPing() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval)
+      this.pingInterval = null
+    }
+  }
+  
   close() {
+    this.stopPing()
     if (this.ws) {
       this.ws.close()
     }

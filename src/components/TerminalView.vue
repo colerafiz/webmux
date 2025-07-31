@@ -12,12 +12,110 @@
         </div>
       </div>
     </div>
-    <div ref="terminalContainer" class="flex-1 overflow-hidden" tabindex="0" style="background: #000" @click="focusTerminal"></div>
+    
+    <!-- Terminal area with mobile controls -->
+    <div class="flex-1 relative overflow-hidden">
+      <!-- Mobile control bar - fixed at top of terminal area -->
+      <div v-if="isMobile" class="absolute top-0 left-0 right-0 z-20 px-2 py-1.5 border-b overflow-x-auto mobile-controls-scrollbar shadow-md" 
+           style="background: var(--bg-secondary); border-color: var(--border-primary); pointer-events: auto;">
+      <div class="flex space-x-1 text-xs whitespace-nowrap">
+        <button 
+          @click="sendKey('Escape')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          ESC
+        </button>
+        <button 
+          @click="sendKey('Tab')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          TAB
+        </button>
+        <button 
+          @click="toggleCtrl" 
+          :class="ctrlPressed ? 'bg-green-600' : ''"
+          class="px-3 py-1.5 rounded hover-bg"
+          :style="ctrlPressed ? 'background: #10b981; color: white' : 'background: var(--bg-tertiary); color: var(--text-primary)'"
+        >
+          CTRL {{ ctrlPressed ? '●' : '' }}
+        </button>
+        <button 
+          @click="sendKey('ArrowUp')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          ↑
+        </button>
+        <button 
+          @click="sendKey('ArrowDown')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          ↓
+        </button>
+        <button 
+          @click="sendKey('ArrowLeft')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          ←
+        </button>
+        <button 
+          @click="sendKey('ArrowRight')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          →
+        </button>
+        <button 
+          @click="sendCtrlKey('c')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          ^C
+        </button>
+        <button 
+          @click="sendCtrlKey('d')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          ^D
+        </button>
+        <button 
+          @click="sendCtrlKey('z')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          ^Z
+        </button>
+        <button 
+          @click="sendCtrlKey('a')" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          ^A
+        </button>
+      </div>
+    </div>
+    
+    <!-- Terminal container -->
+    <div 
+      ref="terminalContainer" 
+      class="absolute inset-0 overflow-hidden touch-manipulation z-10" 
+      tabindex="0" 
+      :style="`background: #000; -webkit-user-select: none; user-select: none; ${isMobile ? 'padding-top: 48px;' : ''}`" 
+      @click="focusTerminal"
+      @touchstart="handleTouchStart"
+      @touchend="handleTouchEnd"
+    ></div>
+  </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -38,6 +136,8 @@ let terminal = null
 let fitAddon = null
 let focusInterval = null
 const terminalSize = ref({ cols: 80, rows: 24 })
+const ctrlPressed = ref(false)
+const isMobile = computed(() => window.innerWidth < 768)
 
 onMounted(() => {
   terminal = new Terminal({
@@ -87,6 +187,13 @@ onMounted(() => {
 
   terminal.onData((data) => {
     if (props.ws.isConnected.value) {
+      // If CTRL is toggled on mobile, modify the input
+      if (ctrlPressed.value && data.length === 1) {
+        const code = data.toUpperCase().charCodeAt(0) - 64
+        data = String.fromCharCode(code)
+        ctrlPressed.value = false // Auto-release after use
+      }
+      
       props.ws.send({
         type: 'input',
         data: data
@@ -105,8 +212,25 @@ onMounted(() => {
     }
   })
 
+  // Direct terminal writing - no client buffering to avoid freeze issues
   props.ws.onMessage('output', (data) => {
-    terminal.write(data.data)
+    if (terminal) {
+      try {
+        terminal.write(data.data)
+      } catch (err) {
+        console.warn('Error writing to terminal:', err)
+        // If terminal write fails, try to recover
+        setTimeout(() => {
+          if (terminal) {
+            try {
+              terminal.write(data.data)
+            } catch (retryErr) {
+              console.error('Terminal write retry failed:', retryErr)
+            }
+          }
+        }, 100)
+      }
+    }
   })
 
   props.ws.onMessage('disconnected', () => {
@@ -153,15 +277,22 @@ watch(() => props.session, () => {
   attachToSession()
 })
 
-const attachToSession = () => {
-  let cols = 120
-  let rows = 40
+const attachToSession = async () => {
+  // Ensure WebSocket is connected
+  await props.ws.ensureConnected()
   
-  if (fitAddon) {
+  let cols = 80
+  let rows = 24
+  
+  if (fitAddon && terminal) {
     const dimensions = fitAddon.proposeDimensions()
-    if (dimensions) {
+    if (dimensions && dimensions.cols > 0 && dimensions.rows > 0) {
       cols = dimensions.cols
       rows = dimensions.rows
+    } else {
+      // Use terminal dimensions as fallback
+      cols = terminal.cols || 80
+      rows = terminal.rows || 24
     }
   }
   
@@ -174,19 +305,23 @@ const attachToSession = () => {
 }
 
 const handleResize = () => {
-  if (fitAddon && terminal) {
+  if (fitAddon && terminal && terminalContainer.value) {
     try {
-      fitAddon.fit()
-      // Send the new dimensions to the server
-      const dimensions = fitAddon.proposeDimensions()
-      if (dimensions) {
-        terminalSize.value = { cols: dimensions.cols, rows: dimensions.rows }
-        if (props.ws.isConnected.value) {
-          props.ws.send({
-            type: 'resize',
-            cols: dimensions.cols,
-            rows: dimensions.rows
-          })
+      // Ensure container has valid dimensions before fitting
+      const rect = terminalContainer.value.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) {
+        fitAddon.fit()
+        // Send the new dimensions to the server
+        const dimensions = fitAddon.proposeDimensions()
+        if (dimensions && dimensions.cols > 0 && dimensions.rows > 0) {
+          terminalSize.value = { cols: dimensions.cols, rows: dimensions.rows }
+          if (props.ws.isConnected.value) {
+            props.ws.send({
+              type: 'resize',
+              cols: dimensions.cols,
+              rows: dimensions.rows
+            })
+          }
         }
       }
     } catch (e) {
@@ -206,6 +341,82 @@ const focusTerminal = () => {
   if (terminal) {
     terminal.focus()
     console.log('Terminal focused on click')
+  }
+}
+
+// Mobile touch handling
+let touchStartTime = 0
+const handleTouchStart = (e) => {
+  touchStartTime = Date.now()
+  // Prevent default to avoid scrolling issues
+  if (e.target === terminalContainer.value) {
+    focusTerminal()
+  }
+}
+
+const handleTouchEnd = (e) => {
+  const touchDuration = Date.now() - touchStartTime
+  // Only focus if it's a quick tap, not a scroll
+  if (touchDuration < 200) {
+    focusTerminal()
+  }
+}
+
+// Mobile keyboard control methods
+const sendKey = (key) => {
+  if (!terminal || !props.ws.isConnected.value) return
+  
+  const keyMap = {
+    'Escape': '\x1b',
+    'Tab': '\t',
+    'ArrowUp': '\x1b[A',
+    'ArrowDown': '\x1b[B',
+    'ArrowLeft': '\x1b[D',
+    'ArrowRight': '\x1b[C',
+  }
+  
+  const data = keyMap[key] || key
+  
+  // Send through WebSocket
+  props.ws.send({
+    type: 'input',
+    data: data
+  })
+  
+  terminal.focus()
+}
+
+const sendCtrlKey = (key) => {
+  console.log('sendCtrlKey called with:', key)
+  if (!terminal || !props.ws.isConnected.value) {
+    console.log('Terminal or WebSocket not ready')
+    return
+  }
+  
+  // Convert letter to control character
+  const code = key.toUpperCase().charCodeAt(0) - 64
+  const ctrlChar = String.fromCharCode(code)
+  
+  console.log('Sending Ctrl+' + key + ' as char code:', code)
+  
+  // Send through WebSocket
+  props.ws.send({
+    type: 'input',
+    data: ctrlChar
+  })
+  
+  terminal.focus()
+}
+
+const toggleCtrl = () => {
+  ctrlPressed.value = !ctrlPressed.value
+  terminal.focus()
+  
+  // Auto-release after 5 seconds
+  if (ctrlPressed.value) {
+    setTimeout(() => {
+      ctrlPressed.value = false
+    }, 5000)
   }
 }
 </script>

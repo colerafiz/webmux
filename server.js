@@ -1,4 +1,6 @@
 const express = require('express');
+const https = require('https');
+const fs = require('fs');
 const WebSocket = require('ws');
 const pty = require('node-pty');
 const { spawn, exec } = require('child_process');
@@ -11,6 +13,13 @@ const execAsync = promisify(exec);
 
 const app = express();
 const port = 3000;
+const httpsPort = 3443;
+
+// HTTPS configuration
+const httpsOptions = {
+  key: fs.readFileSync(path.join(__dirname, 'certs', 'key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, 'certs', 'cert.pem'))
+};
 
 app.use(cors());
 app.use(express.json());
@@ -238,15 +247,31 @@ app.post('/api/sessions/:sessionName/windows/:windowIndex/select', (req, res) =>
   });
 });
 
-const server = app.listen(port, () => {
-  console.log(`WebMux server running at http://localhost:${port}`);
+// Start HTTP server (for development/redirect)
+const server = app.listen(port, '0.0.0.0', () => {
+  console.log(`WebMux HTTP server running on port ${port}`);
+  console.log(`  Local:    http://localhost:${port}`);
+  console.log(`  Network:  http://0.0.0.0:${port}`);
 });
 
+// Start HTTPS server
+const httpsServer = https.createServer(httpsOptions, app);
+httpsServer.listen(httpsPort, '0.0.0.0', () => {
+  console.log(`WebMux HTTPS server running on port ${httpsPort}`);
+  console.log(`  Local:    https://localhost:${httpsPort}`);
+  console.log(`  Network:  https://0.0.0.0:${httpsPort}`);
+  console.log(`  Tailscale: Use your Tailscale IP with port ${httpsPort}`);
+  console.log(`  Note: You may need to accept the self-signed certificate`);
+});
+
+// WebSocket servers for both HTTP and HTTPS
 const wss = new WebSocket.Server({ server, path: '/ws' });
+const wssHttps = new WebSocket.Server({ server: httpsServer, path: '/ws' });
 
 const sessions = new Map();
 
-wss.on('connection', (ws) => {
+// WebSocket connection handler (shared between HTTP and HTTPS)
+function handleWebSocketConnection(ws) {
   console.log('New WebSocket connection established');
   
   ws.on('message', (message) => {
@@ -285,6 +310,13 @@ wss.on('connection', (ws) => {
           console.log('Selecting window:', data.windowIndex, 'in session:', data.sessionName);
           selectWindow(ws, data.sessionName, data.windowIndex);
           break;
+          
+        case 'ping':
+          // Respond to ping with pong
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'pong' }));
+          }
+          break;
       }
     } catch (err) {
       console.error('Error handling message:', err);
@@ -301,7 +333,11 @@ wss.on('connection', (ws) => {
       console.log('Remaining sessions:', sessions.size);
     }
   });
-});
+}
+
+// Attach WebSocket handlers to both servers
+wss.on('connection', handleWebSocketConnection);
+wssHttps.on('connection', handleWebSocketConnection);
 
 async function listTmuxSessions(ws) {
   // First check if tmux server is running
@@ -392,18 +428,42 @@ function createNewPtySession(ws, sessionName, cols, rows) {
   // Attach to tmux session immediately
   ptyProcess.write(`tmux attach-session -t '${sessionName}' || tmux new-session -s '${sessionName}'\r`);
 
-  // Handle PTY output
+  // Simple direct output - no buffering to avoid state issues
   ptyProcess.onData((data) => {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'output',
-        data: data
-      }));
+      try {
+        // Send data directly, but limit size to prevent issues
+        const maxChunkSize = 32 * 1024; // 32KB max per message
+        if (data.length > maxChunkSize) {
+          // Split large data into chunks
+          for (let i = 0; i < data.length; i += maxChunkSize) {
+            const chunk = data.slice(i, i + maxChunkSize);
+            ws.send(JSON.stringify({
+              type: 'output',
+              data: chunk
+            }));
+          }
+        } else {
+          ws.send(JSON.stringify({
+            type: 'output',
+            data: data
+          }));
+        }
+      } catch (err) {
+        console.error('WebSocket send error:', err);
+        // If WebSocket fails, try to reconnect client
+        if (ws.readyState !== WebSocket.OPEN) {
+          console.log('WebSocket connection lost, cleaning up PTY');
+          sessions.delete(ws);
+          ptyProcess.kill();
+        }
+      }
     }
   });
 
   // Handle PTY exit
   ptyProcess.onExit(() => {
+    console.log('PTY process exited for session:', sessionName);
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
         type: 'disconnected'

@@ -85,3 +85,105 @@ body {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* Safe area handling for iOS devices */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* PWA standalone mode adjustments */
+@media all and (display-mode: standalone) {
+  /* Adjust header for standalone mode */
+  header {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Mobile-specific utilities */
+@media (max-width: 768px) {
+  /* Hide elements on mobile */
+  .mobile-hidden {
+    display: none !important;
+  }
+  
+  /* Mobile font sizes */
+  .mobile-text-xs {
+    font-size: 0.65rem;
+  }
+  
+  /* Mobile padding adjustments */
+  .mobile-p-2 {
+    padding: 0.5rem;
+  }
+  
+  /* Touch-friendly button sizes */
+  .mobile-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Mobile terminal controls scrollbar */
+  .mobile-controls-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .mobile-controls-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Mobile terminal adjustments */
+  .xterm {
+    padding: 8px;
+    font-size: 12px;
+  }
+  
+  /* Ensure xterm terminal is visible on mobile */
+  .xterm-screen {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  .xterm-viewport {
+    width: 100% !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Mobile scrollbar (thinner) */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  /* Mobile overlay backdrop */
+  .mobile-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+  }
+  
+  /* Mobile sidebar positioning */
+  .mobile-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+  }
+}

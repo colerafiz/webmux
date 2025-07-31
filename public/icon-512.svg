@@ -1,0 +1,12 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#0a0a0a" rx="76.8"/>
+  
+  <!-- Terminal prompt -->
+  <text x="76.8" y="256" fill="#10b981" font-family="monospace" font-size="128" font-weight="bold">$_</text>
+  
+  <!-- Terminal cursor -->
+  <rect x="281.6" y="179.2" width="102.4" height="25.6" fill="#10b981">
+    <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>
+  </rect>
+</svg>

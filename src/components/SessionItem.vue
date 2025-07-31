@@ -2,14 +2,32 @@
   <div class="group">
     <div
       @click="handleSessionClick"
-      class="px-3 py-2 cursor-pointer transition-colors hover-bg"
-      :class="{ 'bg-opacity-50': isActive }"
+      class="cursor-pointer transition-colors hover-bg"
+      :class="[
+        { 'bg-opacity-50': isActive },
+        isCollapsed ? 'px-2 py-2' : 'px-3 py-2'
+      ]"
       :style="{
         background: isActive ? 'var(--bg-tertiary)' : 'transparent',
         borderLeft: isActive ? '2px solid var(--accent-primary)' : '2px solid transparent'
       }"
+      :title="isCollapsed ? `${session.name} (${session.windows}w)` : ''"
     >
-      <div class="flex items-center justify-between">
+      <!-- Collapsed state - show only initials -->
+      <div v-if="isCollapsed" class="flex items-center justify-center">
+        <div 
+          class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+          :style="{
+            background: isActive ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+            color: isActive ? 'white' : 'var(--text-primary)'
+          }"
+        >
+          {{ getSessionInitials(session.name) }}
+        </div>
+      </div>
+
+      <!-- Expanded state - show full info -->
+      <div v-else class="flex items-center justify-between">
         <div class="flex-1 min-w-0">
           <div class="flex items-center space-x-2">
             <button
@@ -73,7 +91,7 @@
     </div>
     
     <WindowList
-      v-if="showWindows"
+      v-if="showWindows && !isCollapsed"
       :session-name="session.name"
       @select-window="(window) => $emit('select-window', window)"
       @refresh="$emit('refresh')"
@@ -92,6 +110,14 @@ const props = defineProps({
     required: true
   },
   isActive: {
+    type: Boolean,
+    default: false
+  },
+  isCollapsed: {
+    type: Boolean,
+    default: false
+  },
+  isMobile: {
     type: Boolean,
     default: false
   }
@@ -154,13 +180,23 @@ const handleSessionClick = () => {
   }
 }
 
-// Auto-expand when session becomes active
+// Auto-expand when session becomes active (but not when collapsed)
 watch(() => props.isActive, (newVal) => {
-  if (newVal && !showWindows.value) {
+  if (newVal && !showWindows.value && !props.isCollapsed) {
     showWindows.value = true
     if (windowList.value) {
       nextTick(() => windowList.value.refresh())
     }
   }
 })
+
+// Helper function to get session initials
+const getSessionInitials = (name) => {
+  if (!name) return '?'
+  const words = name.split(/[-_\s]+/).filter(w => w.length > 0)
+  if (words.length === 1) {
+    return words[0].charAt(0).toUpperCase()
+  }
+  return words.slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('')
+}
 </script>
