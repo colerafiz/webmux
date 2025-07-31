@@ -1,0 +1,177 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+header {
+    background-color: #2d2d2d;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid #444;
+}
+
+header h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+header p {
+    color: #999;
+    font-size: 0.875rem;
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 250px;
+    background-color: #252525;
+    border-right: 1px solid #444;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.sidebar h2 {
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+}
+
+.btn {
+    background-color: #4a9eff;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    width: 100%;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: #3a8eef;
+}
+
+.sessions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.session-item {
+    background-color: #333;
+    padding: 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.session-item:hover {
+    background-color: #404040;
+}
+
+.session-item.active {
+    background-color: #4a9eff;
+}
+
+.session-item .session-name {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.session-item .session-info {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.session-item.attached .session-info::before {
+    content: "● ";
+    color: #4ade80;
+}
+
+.terminal-container {
+    flex: 1;
+    position: relative;
+    background-color: #000;
+}
+
+#terminal {
+    width: 100%;
+    height: 100%;
+}
+
+.no-session {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #666;
+}
+
+.xterm {
+    padding: 10px;
+}
+
+.xterm-viewport {
+    background-color: transparent !important;
+}
+
+.windows-section {
+    margin-top: 2rem;
+    border-top: 1px solid #444;
+    padding-top: 1rem;
+}
+
+.windows-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.window-item {
+    background-color: #333;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.window-item:hover {
+    background-color: #404040;
+}
+
+.window-item.active {
+    background-color: #4a9eff;
+}
+
+.window-index {
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+.window-name {
+    flex: 1;
+    font-size: 0.875rem;
+}

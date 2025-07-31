@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebMux - TMUX Session Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.1.0/xterm.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>WebMux</h1>
+            <p>Web-based TMUX Session Viewer</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <h2>Sessions</h2>
+                <button id="refresh-btn" class="btn">Refresh</button>
+                <div id="sessions-list" class="sessions-list"></div>
+                
+                <div id="windows-section" class="windows-section" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h2>Windows</h2>
+                        <button id="refresh-windows-btn" class="btn" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.75rem;">↻</button>
+                    </div>
+                    <div id="windows-list" class="windows-list"></div>
+                </div>
+            </div>
+            
+            <div class="terminal-container">
+                <div id="terminal"></div>
+                <div id="no-session" class="no-session">
+                    <p>Select a TMUX session from the list</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.1.0/xterm.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.1.0/addons/fit/fit.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

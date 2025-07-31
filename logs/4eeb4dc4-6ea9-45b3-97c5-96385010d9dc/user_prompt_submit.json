@@ -1,0 +1,16 @@
+[
+  {
+    "session_id": "4eeb4dc4-6ea9-45b3-97c5-96385010d9dc",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/4eeb4dc4-6ea9-45b3-97c5-96385010d9dc.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "I am unable to type into any of my terminal session on the web, also whever we create new tmux sessions they are not showing up in my alacritty. Can you explain the difference between sessions, windows, panes, etc. I think we might have a mis udnerstanding"
+  },
+  {
+    "session_id": "4eeb4dc4-6ea9-45b3-97c5-96385010d9dc",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/4eeb4dc4-6ea9-45b3-97c5-96385010d9dc.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "On our web app, could we please include functionality for that. We should show the windows under  each session and allow to add/delete/rename etc. "
+  }
+]

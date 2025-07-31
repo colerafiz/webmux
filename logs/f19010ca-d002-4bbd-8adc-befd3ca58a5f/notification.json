@@ -1,0 +1,51 @@
+[
+  {
+    "session_id": "f19010ca-d002-4bbd-8adc-befd3ca58a5f",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/f19010ca-d002-4bbd-8adc-befd3ca58a5f.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission to use Update"
+  },
+  {
+    "session_id": "f19010ca-d002-4bbd-8adc-befd3ca58a5f",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/f19010ca-d002-4bbd-8adc-befd3ca58a5f.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission to use Bash"
+  },
+  {
+    "session_id": "f19010ca-d002-4bbd-8adc-befd3ca58a5f",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/f19010ca-d002-4bbd-8adc-befd3ca58a5f.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input"
+  },
+  {
+    "session_id": "f19010ca-d002-4bbd-8adc-befd3ca58a5f",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/f19010ca-d002-4bbd-8adc-befd3ca58a5f.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input"
+  },
+  {
+    "session_id": "f19010ca-d002-4bbd-8adc-befd3ca58a5f",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/f19010ca-d002-4bbd-8adc-befd3ca58a5f.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission to use Bash"
+  },
+  {
+    "session_id": "f19010ca-d002-4bbd-8adc-befd3ca58a5f",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/f19010ca-d002-4bbd-8adc-befd3ca58a5f.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input"
+  },
+  {
+    "session_id": "f19010ca-d002-4bbd-8adc-befd3ca58a5f",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/f19010ca-d002-4bbd-8adc-befd3ca58a5f.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input"
+  }
+]

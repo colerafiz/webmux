@@ -1,0 +1,58 @@
+[
+  {
+    "session_id": "dfa3c005-2361-445e-bc71-d8f228d77114",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/dfa3c005-2361-445e-bc71-d8f228d77114.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "/init "
+  },
+  {
+    "session_id": "dfa3c005-2361-445e-bc71-d8f228d77114",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/dfa3c005-2361-445e-bc71-d8f228d77114.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "When ever we start our application we should ensure TMUX is running and if its not we should start it when we create a session. Currently if I try to use it and create a session when its not running it fails and I get this tmux attach-session -t claude DEV || tmux new-session -s claude DEV\ncyrus@mm:~$ tmux attach-session -t claude DEV || tmux new-session -s claude DEV\ncommand attach-session: too many arguments (need at most 0)\n[exited]\ncyrus@mm:~$ in the terminal window :("
+  },
+  {
+    "session_id": "dfa3c005-2361-445e-bc71-d8f228d77114",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/dfa3c005-2361-445e-bc71-d8f228d77114.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Its not letting me switch windows by clicking, brwoser terminal sayus no active terminal session. also I am not able to type/use the terminal window atm"
+  },
+  {
+    "session_id": "dfa3c005-2361-445e-bc71-d8f228d77114",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/dfa3c005-2361-445e-bc71-d8f228d77114.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "When I try to click the first pane it says cant find pane 0 but I think its starting at 1 instead, could we fix that pls! :)"
+  },
+  {
+    "session_id": "dfa3c005-2361-445e-bc71-d8f228d77114",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/dfa3c005-2361-445e-bc71-d8f228d77114.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "WHen I click on a session in my sidebar, It should expand and show all the windows too"
+  },
+  {
+    "session_id": "dfa3c005-2361-445e-bc71-d8f228d77114",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/dfa3c005-2361-445e-bc71-d8f228d77114.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "I am having some strange behavior issues with it. For example, I will create a new session and it will creaate but for some reason none of my keyboard input will register in the session. "
+  },
+  {
+    "session_id": "dfa3c005-2361-445e-bc71-d8f228d77114",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/dfa3c005-2361-445e-bc71-d8f228d77114.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Its still doing a lot of strange things. Can we think really hard to double check our logic and try to fix this and improve the UX when clicking around from different windows and making sure input works."
+  },
+  {
+    "session_id": "dfa3c005-2361-445e-bc71-d8f228d77114",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/dfa3c005-2361-445e-bc71-d8f228d77114.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Now its acting even weirder where it feels like its closing and restaring all my different windows. Its not working well :( PLS FIX"
+  }
+]

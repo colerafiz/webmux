@@ -1,0 +1,9 @@
+[
+  {
+    "session_id": "c5452a07-aab5-4648-bbad-818fc9b0d393",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/c5452a07-aab5-4648-bbad-818fc9b0d393.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "It is very buggy and glitching my terminal, my tmux/terminal sessions will always use zsh but for some reason got switched to bash. Also can we add more safeguards and checks for the sessions/windows/pane management. "
+  }
+]
