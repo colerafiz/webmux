@@ -287,6 +287,9 @@ const handleRenameSession = async (sessionName: string, newName: string): Promis
   }
 }
 
+// Add a refresh trigger for windows
+const windowRefreshTrigger = ref(0)
+
 const handleSelectWindow = (sessionName: string, window: TmuxWindow): void => {
   console.log('Selecting window:', window.index, 'in session:', sessionName)
   
@@ -312,6 +315,10 @@ ws.onMessage<SessionsListMessage>('sessions-list', (data) => {
 ws.onMessage<WindowSelectedMessage>('window-selected', (data) => {
   if (data.success) {
     console.log('Window selected successfully:', data.windowIndex)
+    // Trigger a refresh of the sessions list to update window states
+    refetch()
+    // Also trigger window refresh
+    windowRefreshTrigger.value++
   } else {
     console.error('Failed to select window:', data.error)
   }

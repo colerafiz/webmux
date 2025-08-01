@@ -34,6 +34,11 @@ pub async fn ensure_tmux_server() -> Result<()> {
 }
 
 pub async fn list_sessions() -> Result<Vec<TmuxSession>> {
+    // Always use fallback for now - control mode needs more testing
+    list_sessions_fallback().await
+}
+
+async fn list_sessions_fallback() -> Result<Vec<TmuxSession>> {
     // First ensure tmux server is running
     let check = Command::new("tmux")
         .args(&["list-sessions"])

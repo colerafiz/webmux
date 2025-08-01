@@ -9,10 +9,11 @@ use tokio::{
     sync::{mpsc, Mutex},
 };
 use tracing::{error, info};
+use bytes::Bytes;
 
-use crate::types::ServerMessage;
+use crate::{types::ServerMessage, websocket::BroadcastMessage};
 
-type AudioClient = mpsc::UnboundedSender<ServerMessage>;
+type AudioClient = mpsc::UnboundedSender<BroadcastMessage>;
 
 lazy_static::lazy_static! {
     static ref AUDIO_STATE: Arc<Mutex<AudioState>> = Arc::new(Mutex::new(AudioState::default()));
@@ -25,7 +26,7 @@ struct AudioState {
     clients: Vec<AudioClient>,
 }
 
-pub async fn start_streaming(client_tx: mpsc::UnboundedSender<ServerMessage>) -> Result<()> {
+pub async fn start_streaming(client_tx: mpsc::UnboundedSender<BroadcastMessage>) -> Result<()> {
     let mut state = AUDIO_STATE.lock().await;
     
     // Add client
@@ -37,7 +38,9 @@ pub async fn start_streaming(client_tx: mpsc::UnboundedSender<ServerMessage>) ->
         streaming: state.is_streaming,
         error: None,
     };
-    let _ = client_tx.send(status);
+    if let Ok(json) = serde_json::to_string(&status) {
+        let _ = client_tx.send(BroadcastMessage::Text(Arc::new(json)));
+    }
     
     // Start streaming if not already running
     if !state.is_streaming {
@@ -47,7 +50,7 @@ pub async fn start_streaming(client_tx: mpsc::UnboundedSender<ServerMessage>) ->
     Ok(())
 }
 
-pub async fn stop_streaming_for_client(client_tx: &mpsc::UnboundedSender<ServerMessage>) -> Result<()> {
+pub async fn stop_streaming_for_client(client_tx: &mpsc::UnboundedSender<BroadcastMessage>) -> Result<()> {
     let mut state = AUDIO_STATE.lock().await;
     
     // Remove only this specific client
@@ -130,15 +133,15 @@ async fn start_ffmpeg(state: &mut AudioState) -> Result<()> {
     
     // Spawn task to read and broadcast audio data
     tokio::spawn(async move {
-        let mut buffer = vec![0u8; 4096];
+        let mut buffer = vec![0u8; 16384]; // Larger buffer for better throughput
         loop {
             match stdout.read(&mut buffer).await {
                 Ok(0) => break, // EOF
                 Ok(n) => {
-                    let data = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buffer[..n]);
-                    info!("Sending audio chunk: {} bytes (base64: {} chars)", n, data.len());
-                    let msg = ServerMessage::AudioStream { data };
-                    broadcast_to_clients(&clients_clone, &msg).await;
+                    // Send as binary frame for efficiency
+                    let data = Bytes::copy_from_slice(&buffer[..n]);
+                    info!("Sending audio chunk: {} bytes", n);
+                    broadcast_binary_to_clients(&clients_clone, data).await;
                 }
                 Err(e) => {
                     error!("Error reading ffmpeg output: {}", e);
@@ -186,7 +189,12 @@ async fn notify_clients_status(state: &AudioState, streaming: bool) {
         streaming,
         error: None,
     };
-    broadcast_to_clients(&state.clients, &msg).await;
+    if let Ok(json) = serde_json::to_string(&msg) {
+        let broadcast_msg = BroadcastMessage::Text(Arc::new(json));
+        for client in &state.clients {
+            let _ = client.send(broadcast_msg.clone());
+        }
+    }
 }
 
 async fn notify_clients_error(state: &AudioState, error: &str) {
@@ -194,14 +202,20 @@ async fn notify_clients_error(state: &AudioState, error: &str) {
         streaming: false,
         error: Some(error.to_string()),
     };
-    broadcast_to_clients(&state.clients, &msg).await;
+    if let Ok(json) = serde_json::to_string(&msg) {
+        let broadcast_msg = BroadcastMessage::Text(Arc::new(json));
+        for client in &state.clients {
+            let _ = client.send(broadcast_msg.clone());
+        }
+    }
 }
 
-async fn broadcast_to_clients(
+async fn broadcast_binary_to_clients(
     clients: &[AudioClient],
-    msg: &ServerMessage,
+    data: Bytes,
 ) {
-    info!("Broadcasting to {} clients", clients.len());
+    info!("Broadcasting binary to {} clients", clients.len());
+    let msg = BroadcastMessage::Binary(data);
     for client in clients {
         let _ = client.send(msg.clone());
     }

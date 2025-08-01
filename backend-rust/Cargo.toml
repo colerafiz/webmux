@@ -54,6 +54,19 @@ base64 = "0.21"
 # Lazy static for global state
 lazy_static = "1.4"
 
+# Zero-copy bytes handling
+bytes = "1.5"
+
+# Lock-free data structures
+crossbeam = "0.8"
+dashmap = "5.5"
+
+# Fast hashing
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+
+# SIMD UTF-8 validation
+simdutf8 = "0.1"
+
 # Async streams
 futures = "0.3"
 

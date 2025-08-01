@@ -72,15 +72,15 @@
         :key="window.index"
         @click="$emit('select-window', window)"
         class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover-bg text-xs"
-        :class="{ 'bg-opacity-30': window.active }"
+        :class="{ 'bg-opacity-30': window.active && props.isActiveSession }"
         :style="{
-          background: window.active ? 'var(--bg-tertiary)' : 'transparent',
-          borderLeft: window.active ? '2px solid var(--accent-secondary)' : '2px solid transparent'
+          background: window.active && props.isActiveSession ? 'var(--bg-tertiary)' : 'transparent',
+          borderLeft: window.active && props.isActiveSession ? '2px solid var(--accent-secondary)' : '2px solid transparent'
         }"
       >
         <div class="flex items-center space-x-2 min-w-0">
           <span class="font-mono" style="color: var(--text-tertiary)">{{ window.index }}:</span>
-          <span v-if="!isEditing(window)" class="truncate" :style="{ color: window.active ? 'var(--text-primary)' : 'var(--text-secondary)' }">
+          <span v-if="!isEditing(window)" class="truncate" :style="{ color: window.active && props.isActiveSession ? 'var(--text-primary)' : 'var(--text-secondary)' }">
             {{ window.name }}
           </span>
           <input
@@ -138,13 +138,16 @@
 import { ref, onMounted, nextTick, watch, onUnmounted } from 'vue'
 import { tmuxApi } from '@/api/tmux'
 import { useWebSocket } from '@/composables/useWebSocket'
-import type { TmuxWindow, WindowsListMessage } from '@/types'
+import type { TmuxWindow, WindowSelectedMessage } from '@/types'
 
 interface Props {
   sessionName: string
+  isActiveSession?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  isActiveSession: false
+})
 
 const emit = defineEmits<{
   'select-window': [window: TmuxWindow]
@@ -171,22 +174,39 @@ const windowToDelete = ref<TmuxWindow | null>(null)
 const ws = useWebSocket()
 
 const loadWindows = async (): Promise<void> => {
+  // Store the session name we're loading for
+  const loadingForSession = props.sessionName
+  
   try {
     loading.value = true
     error.value = false
-    windows.value = await tmuxApi.getWindows(props.sessionName)
+    const loadedWindows = await tmuxApi.getWindows(props.sessionName)
+    
+    // Only update if we're still showing the same session
+    if (props.sessionName === loadingForSession) {
+      windows.value = loadedWindows
+    } else {
+      console.log('Session changed while loading windows, ignoring stale data')
+    }
   } catch (err: any) {
-    error.value = true
-    console.error('Failed to load windows for session:', props.sessionName, err)
-    // If it's a 404, the session might not exist yet
-    if (err?.response?.status === 404) {
-      // Retry after a short delay
-      setTimeout(() => {
-        loadWindows()
-      }, 500)
+    // Only show error if we're still on the same session
+    if (props.sessionName === loadingForSession) {
+      error.value = true
+      console.error('Failed to load windows for session:', props.sessionName, err)
+      // If it's a 404, the session might not exist yet
+      if (err?.response?.status === 404) {
+        // Retry after a short delay
+        setTimeout(() => {
+          if (props.sessionName === loadingForSession) {
+            loadWindows()
+          }
+        }, 500)
+      }
     }
   } finally {
-    loading.value = false
+    if (props.sessionName === loadingForSession) {
+      loading.value = false
+    }
   }
 }
 
@@ -302,21 +322,21 @@ onMounted(() => {
   
   loadWindows()
   
-  // Listen for real-time window updates
-  ws.onMessage<WindowsListMessage>('windows-list', (data) => {
-    console.log('Received windows update:', data.windows)
-    // Only update if it's for the current session
-    // Note: The backend broadcasts all window updates, so we need to filter
-    // In a future improvement, we could include session name in the message
-    windows.value = data.windows
-    loading.value = false
-    error.value = false
+  // Listen for window selection success to refresh
+  ws.onMessage<WindowSelectedMessage>('window-selected', (data) => {
+    if (data.success) {
+      console.log('Window selected, refreshing windows for session:', props.sessionName)
+      // Small delay to ensure tmux has updated
+      setTimeout(() => {
+        loadWindows()
+      }, 100)
+    }
   })
 })
 
 onUnmounted(() => {
   // Clean up WebSocket listener
-  ws.offMessage('windows-list')
+  ws.offMessage('window-selected')
 })
 
 // Watch for session name changes and reload windows
