@@ -52,6 +52,8 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
 - **Main server**: `backend-rust/src/main.rs` - Axum server with WebSocket support for terminal sessions
 - **TMUX handler**: `backend-rust/src/tmux/mod.rs` - Dedicated TMUX command handling logic
 - **Type definitions**: `backend-rust/src/types/mod.rs` - Rust types for backend
+- **WebSocket handler**: `backend-rust/src/websocket/mod.rs` - WebSocket connection management and message handling
+- **Session manager**: `backend-rust/src/websocket/session_manager.rs` - Alternative TMUX session management using `send-keys` and `capture-pane` to avoid direct attachment conflicts
 - **WebSocket protocol**: Uses `axum::ws` and `tokio-tungstenite` for real-time communication
 - **Terminal emulation**: Uses `portable-pty` for cross-platform pseudo-terminal creation and TMUX attachment
 - **Audio streaming**: `backend-rust/src/audio/mod.rs` - System audio capture and streaming via ffmpeg
@@ -100,11 +102,15 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
   - `{ type: 'resize', cols, rows }`
   - `{ type: 'list-windows', sessionName }`
   - `{ type: 'select-window', sessionName, windowIndex }`
+  - `{ type: 'start-audio' }` - Start audio streaming
+  - `{ type: 'stop-audio' }` - Stop audio streaming
 - Server → Client:
   - `{ type: 'output', data }`
   - `{ type: 'attached', sessionName }`
   - `{ type: 'disconnected' }`
   - `{ type: 'windows-list', windows }`
+  - `{ type: 'audio-data', data }` - Base64 encoded audio chunks
+  - `{ type: 'audio-status', streaming, error }` - Audio streaming status
 
 ## Testing & Debugging
 
@@ -144,6 +150,12 @@ During development, the application uses different ports to avoid conflicts:
 ### Project Migration History
 The backend was recently migrated from TypeScript/Express to Rust/Axum for better performance and type safety. Legacy TypeScript backend commands are preserved in package.json with "old:" prefix.
 
+### Running Tests
+To run the Rust backend tests:
+```bash
+npm run rust:test
+```
+
 ### Best Practices Document
 The project contains a detailed best practices document (`tmux-web-terminal-best-practices.md`) that outlines:
 - Current implementation issues with direct TMUX attachment
@@ -153,6 +165,13 @@ The project contains a detailed best practices document (`tmux-web-terminal-best
 
 Key implementation considerations:
 - The current implementation uses `tmux attach-session` directly which can cause conflicts with multiple clients
+- An alternative session manager implementation exists in `backend-rust/src/websocket/session_manager.rs` that uses `send-keys` and `capture-pane` commands to avoid attachment conflicts
 - Consider implementing the improved patterns outlined in the best practices document
 - WebSocket connections are managed per client with individual PTY processes
 - TMUX prefix key is set to Ctrl-A (0x01) for window switching
+
+### Debugging Tips
+- **Enable debug logs**: Set `RUST_LOG=debug` environment variable
+- **Audio streaming debug**: Run backend with `--audio` flag
+- **Check WebSocket messages**: Use browser developer tools to monitor WebSocket frames
+- **TMUX session conflicts**: If experiencing issues with interactive applications (like Claude Code), consider using the alternative session manager approach
