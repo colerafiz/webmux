@@ -30,7 +30,8 @@
   "include": [
     "server.ts",
     "tmux-handler.ts",
-    "backend-types.ts"
+    "backend-types.ts",
+    "audio-handler.ts"
   ],
   "exclude": [
     "node_modules",

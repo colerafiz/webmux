@@ -1,6 +1,5 @@
 import { spawn, ChildProcess } from 'child_process';
 import WebSocket from 'ws';
-import ffmpeg from 'fluent-ffmpeg';
 import { EventEmitter } from 'events';
 
 export class AudioHandler extends EventEmitter {

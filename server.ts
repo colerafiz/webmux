@@ -153,10 +153,10 @@ app.post('/api/sessions/:name/rename', async (req: Request<{ name: string }, any
   try {
     // Use execAsync with proper escaping
     await execAsync(`tmux rename-session -t '${name.replace(/'/g, "'\\''")}' '${newName.replace(/'/g, "'\\''")}'`);
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (error: any) {
     console.error('Failed to rename session:', error);
-    res.status(400).json({ 
+    return res.status(400).json({ 
       success: false, 
       error: error.message || 'Failed to rename session' 
     });
@@ -276,10 +276,10 @@ app.post('/api/sessions/:sessionName/windows/:windowIndex/rename', async (req: R
     // Use execAsync with proper escaping
     const target = `${sessionName}:${windowIndex}`;
     await execAsync(`tmux rename-window -t '${target}' '${newName.replace(/'/g, "'\\''")}'`);
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (error: any) {
     console.error('Failed to rename window:', error);
-    res.status(400).json({ 
+    return res.status(400).json({ 
       success: false, 
       error: error.message || 'Failed to rename window' 
     });
