@@ -119,12 +119,16 @@
         />
       </div>
     </div>
+    
+    <!-- Audio control at bottom of sidebar -->
+    <AudioControl :isCollapsed="isCollapsed && !isMobile" />
   </aside>
 </template>
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import SessionItem from './SessionItem.vue'
+import AudioControl from './AudioControl.vue'
 import type { TmuxSession, TmuxWindow } from '@/types'
 
 interface Props {

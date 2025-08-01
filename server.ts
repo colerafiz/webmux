@@ -18,8 +18,10 @@ import type {
   RenameSessionRequest,
   CreateWindowRequest,
   RenameWindowRequest,
-  SystemStats
+  SystemStats,
+  AudioControlMessage
 } from './backend-types';
+import { audioHandler } from './audio-handler';
 
 const execAsync = promisify(exec);
 
@@ -372,6 +374,16 @@ function handleWebSocketConnection(ws: WebSocket): void {
             ws.send(JSON.stringify({ type: 'pong' }));
           }
           break;
+          
+        case 'audio-control':
+          const audioMsg = data as AudioControlMessage;
+          if (audioMsg.action === 'start') {
+            audioHandler.addClient(ws);
+            audioHandler.startStreaming();
+          } else if (audioMsg.action === 'stop') {
+            audioHandler.removeClient(ws);
+          }
+          break;
       }
     } catch (err) {
       console.error('Error handling message:', err);
@@ -386,6 +398,11 @@ function handleWebSocketConnection(ws: WebSocket): void {
       ptyProcess.kill();
       sessions.delete(ws);
       console.log('Remaining sessions:', sessions.size);
+    }
+    
+    // Remove from audio clients if streaming
+    if (audioHandler.isClientStreaming(ws)) {
+      audioHandler.removeClient(ws);
     }
   });
 }

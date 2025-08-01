@@ -117,6 +117,23 @@ export interface WindowSelectedMessage extends WsMessage {
   windowIndex: number;
 }
 
+// Audio streaming messages
+export interface AudioControlMessage extends WsMessage {
+  type: 'audio-control';
+  action: 'start' | 'stop';
+}
+
+export interface AudioStreamMessage extends WsMessage {
+  type: 'audio-stream';
+  data: ArrayBuffer;
+}
+
+export interface AudioStatusMessage extends WsMessage {
+  type: 'audio-status';
+  streaming: boolean;
+  error?: string;
+}
+
 // API-specific response types
 export interface SessionCreateResponse {
   success: boolean;

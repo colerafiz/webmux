@@ -42,6 +42,22 @@ export interface PingMessage extends BaseWebSocketMessage {
   type: 'ping';
 }
 
+export interface AudioControlMessage extends BaseWebSocketMessage {
+  type: 'audio-control';
+  action: 'start' | 'stop';
+}
+
+export interface AudioStreamMessage extends BaseWebSocketMessage {
+  type: 'audio-stream';
+  data: ArrayBuffer;
+}
+
+export interface AudioStatusMessage extends BaseWebSocketMessage {
+  type: 'audio-status';
+  streaming: boolean;
+  error?: string;
+}
+
 export type WebSocketMessage = 
   | ListSessionsMessage
   | AttachSessionMessage
@@ -49,7 +65,10 @@ export type WebSocketMessage =
   | ResizeMessage
   | ListWindowsMessage
   | SelectWindowMessage
-  | PingMessage;
+  | PingMessage
+  | AudioControlMessage
+  | AudioStreamMessage
+  | AudioStatusMessage;
 
 // TMUX types
 export interface TmuxSession {

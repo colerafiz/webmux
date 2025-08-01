@@ -52,9 +52,13 @@ class WebSocketManager {
       }
       
       this.ws.onmessage = (event) => {
-        const data = JSON.parse(event.data) as WsMessage
-        const handlers = this.messageHandlers.get(data.type) || []
-        handlers.forEach(handler => handler(data))
+        try {
+          const data = JSON.parse(event.data) as WsMessage
+          const handlers = this.messageHandlers.get(data.type) || []
+          handlers.forEach(handler => handler(data))
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
       }
       
       this.ws.onerror = (error) => {
