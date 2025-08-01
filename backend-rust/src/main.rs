@@ -24,6 +24,7 @@ mod tmux;
 mod types;
 mod websocket;
 mod audio;
+mod monitor;
 
 // Global flag for audio logging
 pub static ENABLE_AUDIO_LOGS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -37,9 +38,14 @@ struct Args {
     audio: bool,
 }
 
+use tokio::sync::mpsc;
+use crate::types::ServerMessage;
+
 #[derive(Clone)]
 pub struct AppState {
     pub enable_audio_logs: bool,
+    pub broadcast_tx: mpsc::UnboundedSender<ServerMessage>,
+    pub client_manager: Arc<websocket::ClientManager>,
 }
 
 #[tokio::main]
@@ -61,9 +67,31 @@ async fn main() -> Result<()> {
         info!("Audio debug logging enabled");
     }
     
+    // Create broadcast channel for tmux updates
+    let (broadcast_tx, mut broadcast_rx) = mpsc::unbounded_channel::<ServerMessage>();
+    
+    // Create client manager
+    let client_manager = Arc::new(websocket::ClientManager::new());
+    let client_manager_clone = client_manager.clone();
+    
+    // Spawn task to forward broadcasts to all clients
+    tokio::spawn(async move {
+        while let Some(msg) = broadcast_rx.recv().await {
+            client_manager_clone.broadcast(msg).await;
+        }
+    });
+    
     let state = AppState {
         enable_audio_logs: args.audio,
+        broadcast_tx: broadcast_tx.clone(),
+        client_manager,
     };
+    
+    // Start tmux monitor
+    let monitor = monitor::TmuxMonitor::new(broadcast_tx);
+    tokio::spawn(async move {
+        monitor.start().await;
+    });
 
     // Serve static files from dist directory
     let serve_dir = ServeDir::new("../dist")

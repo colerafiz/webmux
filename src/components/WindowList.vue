@@ -135,9 +135,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, nextTick, watch, onUnmounted } from 'vue'
 import { tmuxApi } from '@/api/tmux'
-import type { TmuxWindow } from '@/types'
+import { useWebSocket } from '@/composables/useWebSocket'
+import type { TmuxWindow, WindowsListMessage } from '@/types'
 
 interface Props {
   sessionName: string
@@ -165,6 +166,9 @@ const windowNameInput = ref<HTMLInputElement>()
 // Modal state for delete confirmation
 const showDeleteModal = ref(false)
 const windowToDelete = ref<TmuxWindow | null>(null)
+
+// WebSocket for real-time updates
+const ws = useWebSocket()
 
 const loadWindows = async (): Promise<void> => {
   try {
@@ -195,14 +199,28 @@ const createWindow = (): void => {
 }
 
 const confirmCreateWindow = async (): Promise<void> => {
+  // Optimistically add the window
+  const optimisticWindow: TmuxWindow = {
+    index: windows.value.length,
+    name: newWindowName.value || `Window ${windows.value.length}`,
+    active: false,
+    panes: 1
+  }
+  
+  // Add to UI immediately
+  windows.value = [...windows.value, optimisticWindow]
+  showCreateModal.value = false
+  const savedName = newWindowName.value
+  newWindowName.value = ''
+  
   try {
-    await tmuxApi.createWindow(props.sessionName, newWindowName.value || undefined)
-    await loadWindows()
+    await tmuxApi.createWindow(props.sessionName, savedName || undefined)
+    // Real update will come through WebSocket
     emit('refresh')
-    showCreateModal.value = false
-    newWindowName.value = ''
   } catch (err) {
     console.error('Failed to create window:', err)
+    // Revert optimistic update
+    windows.value = windows.value.filter(w => w.index !== optimisticWindow.index)
     alert('Failed to create window. Please try again.')
   }
 }
@@ -220,14 +238,22 @@ const killWindow = (window: TmuxWindow): void => {
 const confirmDelete = async (): Promise<void> => {
   if (!windowToDelete.value) return
   
+  const windowToRemove = windowToDelete.value
+  const originalWindows = [...windows.value]
+  
+  // Optimistically remove the window
+  windows.value = windows.value.filter(w => w.index !== windowToRemove.index)
+  showDeleteModal.value = false
+  windowToDelete.value = null
+  
   try {
-    await tmuxApi.killWindow(props.sessionName, windowToDelete.value.index)
-    await loadWindows()
+    await tmuxApi.killWindow(props.sessionName, windowToRemove.index)
+    // Real update will come through WebSocket
     emit('refresh')
-    showDeleteModal.value = false
-    windowToDelete.value = null
   } catch (err) {
     console.error('Failed to kill window:', err)
+    // Revert optimistic update
+    windows.value = originalWindows
     alert('Failed to delete window. Please try again.')
   }
 }
@@ -275,6 +301,22 @@ onMounted(() => {
   newWindowName.value = ''
   
   loadWindows()
+  
+  // Listen for real-time window updates
+  ws.onMessage<WindowsListMessage>('windows-list', (data) => {
+    console.log('Received windows update:', data.windows)
+    // Only update if it's for the current session
+    // Note: The backend broadcasts all window updates, so we need to filter
+    // In a future improvement, we could include session name in the message
+    windows.value = data.windows
+    loading.value = false
+    error.value = false
+  })
+})
+
+onUnmounted(() => {
+  // Clean up WebSocket listener
+  ws.offMessage('windows-list')
 })
 
 // Watch for session name changes and reload windows

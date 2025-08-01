@@ -7,8 +7,43 @@
           <span style="color: var(--text-tertiary)">Session:</span>
           <span style="color: var(--text-primary)" class="font-medium">{{ session }}</span>
         </div>
-        <div class="text-xs" style="color: var(--text-tertiary)">
-          <span>{{ terminalSize.cols }}×{{ terminalSize.rows }}</span>
+        <div class="flex items-center space-x-2">
+          <!-- Action buttons -->
+          <button 
+            @click="splitHorizontal" 
+            class="px-2 py-1 text-xs rounded hover-bg"
+            style="background: var(--bg-tertiary); color: var(--text-primary)"
+            title="Split Horizontal"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 6h14M5 18h14" opacity="0.3"></path>
+            </svg>
+          </button>
+          <button 
+            @click="splitVertical" 
+            class="px-2 py-1 text-xs rounded hover-bg"
+            style="background: var(--bg-tertiary); color: var(--text-primary)"
+            title="Split Vertical"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 5v14M18 5v14" opacity="0.3"></path>
+            </svg>
+          </button>
+          <button 
+            @click="pasteFromClipboard" 
+            class="px-2 py-1 text-xs rounded hover-bg"
+            style="background: var(--bg-tertiary); color: var(--text-primary)"
+            title="Paste"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+          </button>
+          <div class="text-xs" style="color: var(--text-tertiary)">
+            <span>{{ terminalSize.cols }}×{{ terminalSize.rows }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -97,6 +132,27 @@
         >
           ^A
         </button>
+        <button 
+          @click="splitHorizontal" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          H-Split
+        </button>
+        <button 
+          @click="splitVertical" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          V-Split
+        </button>
+        <button 
+          @click="pasteFromClipboard" 
+          class="px-3 py-1.5 rounded hover-bg"
+          style="background: var(--bg-tertiary); color: var(--text-primary)"
+        >
+          Paste
+        </button>
       </div>
     </div>
     
@@ -105,7 +161,7 @@
       ref="terminalContainer" 
       class="absolute inset-0 overflow-hidden touch-manipulation z-10" 
       tabindex="0" 
-      :style="`background: #000; -webkit-user-select: none; user-select: none; ${isMobile ? 'padding-top: 48px;' : ''}`" 
+      :style="`background: #000; ${isMobile ? 'padding-top: 48px;' : ''}`" 
       @click="focusTerminal"
       @touchstart="handleTouchStart"
       @touchend="handleTouchEnd"
@@ -202,6 +258,28 @@ onMounted(() => {
         }
         props.ws.send(message)
       }
+    })
+
+    // Auto-copy selected text to clipboard
+    terminal.onSelectionChange(() => {
+      const selection = terminal.getSelection()
+      if (selection) {
+        navigator.clipboard.writeText(selection).catch(err => {
+          console.error('Failed to copy to clipboard:', err)
+        })
+      }
+    })
+
+    // Handle paste with Ctrl+V/Cmd+V
+    terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+      // Handle paste (Ctrl+V or Cmd+V)
+      if ((event.ctrlKey || event.metaKey) && event.key === 'v' && !event.shiftKey) {
+        event.preventDefault()
+        pasteFromClipboard()
+        return false
+      }
+      // Let other key events pass through
+      return true
     })
   }
 
@@ -434,4 +512,83 @@ const toggleCtrl = (): void => {
     }, 5000)
   }
 }
+
+const splitHorizontal = (): void => {
+  // Send tmux split-window command horizontally (Ctrl-A ")
+  if (!props.ws.isConnected.value) return
+  
+  // Send as a single message with both the prefix and command
+  const message: InputMessage = {
+    type: 'input',
+    data: '\x01"'  // Ctrl-A followed by "
+  }
+  props.ws.send(message)
+  
+  if (terminal) terminal.focus()
+}
+
+const splitVertical = (): void => {
+  // Send tmux split-window command vertically (Ctrl-A %)
+  if (!props.ws.isConnected.value) return
+  
+  // Send as a single message with both the prefix and command
+  const message: InputMessage = {
+    type: 'input',
+    data: '\x01%'  // Ctrl-A followed by %
+  }
+  props.ws.send(message)
+  
+  if (terminal) terminal.focus()
+}
+
+const pasteFromClipboard = async (): Promise<void> => {
+  try {
+    // First ensure terminal has focus
+    if (terminal) terminal.focus()
+    
+    // Try to read from clipboard
+    let text = await navigator.clipboard.readText()
+    console.log('Clipboard text:', text ? `${text.length} characters` : 'empty')
+    
+    if (text && props.ws.isConnected.value) {
+      // Escape newlines to prevent auto-execution while preserving formatting
+      // This sends the text with escaped newlines that will appear as line continuations
+      text = text.replace(/\n/g, '\\\n')
+      
+      console.log('Escaped text for paste')
+      
+      const message: InputMessage = {
+        type: 'input',
+        data: text
+      }
+      props.ws.send(message)
+      console.log('Pasted text sent to terminal')
+    } else if (!text) {
+      console.warn('Clipboard is empty or no text to paste')
+    } else if (!props.ws.isConnected.value) {
+      console.error('WebSocket is not connected')
+    }
+  } catch (err) {
+    console.error('Failed to read from clipboard:', err)
+    
+    // Try alternative paste method using execCommand
+    try {
+      if (terminal) {
+        terminal.focus()
+        const result = document.execCommand('paste')
+        console.log('execCommand paste result:', result)
+      }
+    } catch (fallbackErr) {
+      console.error('Fallback paste also failed:', fallbackErr)
+      // Could show a prompt for manual paste here
+      alert('Unable to paste. Please use Ctrl+V (or Cmd+V on Mac) to paste directly.')
+    }
+  }
+}
 </script>
+
+<style scoped>
+.hover-bg:hover {
+  filter: brightness(1.2);
+}
+</style>

@@ -105,14 +105,25 @@ pub async fn create_session(name: &str) -> Result<()> {
 
 pub async fn kill_session(name: &str) -> Result<()> {
     info!("Executing tmux kill-session for: {}", name);
+    
+    // First try regular kill-session
     let status = Command::new("tmux")
         .args(&["kill-session", "-t", name])
         .status()
         .await?;
 
     if !status.success() {
-        error!("tmux kill-session failed for: {}", name);
-        anyhow::bail!("Failed to kill session");
+        // If that fails, try with -C flag to kill all clients
+        error!("tmux kill-session failed, trying with -C flag for: {}", name);
+        let status2 = Command::new("tmux")
+            .args(&["kill-session", "-C", "-t", name])
+            .status()
+            .await?;
+            
+        if !status2.success() {
+            error!("tmux kill-session -C also failed for: {}", name);
+            anyhow::bail!("Failed to kill session");
+        }
     }
 
     info!("tmux kill-session succeeded for: {}", name);

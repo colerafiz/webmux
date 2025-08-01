@@ -7,6 +7,32 @@
     ]"
     style="background: var(--bg-secondary); border-color: var(--border-primary)"
   >
+    <!-- Modal for delete confirmation -->
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cancelDelete">
+      <div class="p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" style="background: var(--bg-secondary); border: 1px solid var(--border-primary)">
+        <h3 class="text-lg font-semibold mb-4" style="color: var(--text-primary)">{{ deleteModalTitle }}</h3>
+        <p class="mb-4" style="color: var(--text-secondary)">
+          {{ deleteModalMessage }}
+        </p>
+        <div class="flex justify-end space-x-2">
+          <button 
+            @click="cancelDelete"
+            class="px-4 py-2 text-sm border rounded"
+            style="background: var(--bg-secondary); border-color: var(--border-primary); color: var(--text-secondary)"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="confirmDelete"
+            class="px-4 py-2 text-sm border rounded"
+            style="background: #f85149; border-color: #f85149; color: white"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal for session name input -->
     <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
@@ -147,7 +173,7 @@ interface Props {
   isLoading: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   sessions: () => [],
   currentSession: null,
   isCollapsed: false,
@@ -158,6 +184,7 @@ withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   select: [sessionName: string]
   refresh: []
+  kill: [sessionName: string]
   rename: [sessionName: string, newName: string]
   create: [sessionName: string]
   'select-window': [sessionName: string, window: TmuxWindow]
@@ -168,6 +195,12 @@ const emit = defineEmits<{
 const showCreateModal = ref(false)
 const newSessionName = ref('')
 const sessionNameInput = ref<HTMLInputElement>()
+
+// Delete modal state
+const showDeleteModal = ref(false)
+const sessionToDelete = ref<string | null>(null)
+const deleteModalTitle = ref('')
+const deleteModalMessage = ref('')
 
 const handleCreate = (): void => {
   console.log('handleCreate called')
@@ -193,40 +226,35 @@ const cancelCreate = (): void => {
   newSessionName.value = ''
 }
 
-const handleKill = async (sessionName: string): Promise<void> => {
+const handleKill = (sessionName: string): void => {
+  console.log('handleKill called for session:', sessionName)
   const session = props.sessions.find(s => s.name === sessionName)
-  if (!session) return
-  
-  const confirmMessage = session.windows === 1 
-    ? `Close session "${sessionName}"?`
-    : `Kill session "${sessionName}"?\n\nThis will close all ${session.windows} windows.`
-    
-  if (confirm(confirmMessage)) {
-    try {
-      if (session.windows === 1) {
-        // If only one window, kill the window instead (which kills the session)
-        console.log('Killing window 0 in session:', sessionName)
-        await tmuxApi.killWindow(sessionName, 0)
-      } else {
-        // Multiple windows, kill the entire session
-        console.log('Killing session:', sessionName)
-        await tmuxApi.killSession(sessionName)
-      }
-      
-      // Wait a moment for tmux to process
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // If we killed the current session, clear it
-      if (props.currentSession === sessionName) {
-        emit('select', '')
-      }
-      
-      // Force refresh the sessions list
-      emit('refresh')
-    } catch (error: any) {
-      console.error('Failed to kill session:', error)
-      alert(`Failed to kill session: ${error.response?.data?.error || error.message}`)
-    }
+  if (!session) {
+    console.error('Session not found:', sessionName)
+    return
   }
+  
+  sessionToDelete.value = sessionName
+  deleteModalTitle.value = session.windows === 1 ? 'Close Session' : 'Kill Session'
+  deleteModalMessage.value = session.windows === 1 
+    ? `Are you sure you want to close session "${sessionName}"?`
+    : `Are you sure you want to kill session "${sessionName}"? This will close all ${session.windows} windows.`
+  
+  showDeleteModal.value = true
+}
+
+const confirmDelete = (): void => {
+  if (sessionToDelete.value) {
+    console.log('User confirmed kill for session:', sessionToDelete.value)
+    emit('kill', sessionToDelete.value)
+    showDeleteModal.value = false
+    sessionToDelete.value = null
+  }
+}
+
+const cancelDelete = (): void => {
+  console.log('User cancelled delete')
+  showDeleteModal.value = false
+  sessionToDelete.value = null
 }
 </script>

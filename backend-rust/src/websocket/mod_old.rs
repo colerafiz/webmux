@@ -10,10 +10,9 @@ use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::{
     sync::Arc,
     io::{Read, Write},
-    collections::HashMap,
 };
 use tokio::{
-    sync::{mpsc, Mutex, RwLock},
+    sync::{mpsc, Mutex},
     task::JoinHandle,
 };
 use tracing::{debug, error, info};
@@ -26,41 +25,10 @@ use crate::{
     AppState,
 };
 
+mod session_manager;
+use self::session_manager::TmuxSessionManager;
+
 type ClientId = String;
-
-// Client manager for broadcasting messages to all connected clients
-pub struct ClientManager {
-    clients: Arc<RwLock<HashMap<ClientId, mpsc::UnboundedSender<ServerMessage>>>>,
-}
-
-impl ClientManager {
-    pub fn new() -> Self {
-        Self {
-            clients: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    pub async fn add_client(&self, client_id: ClientId, tx: mpsc::UnboundedSender<ServerMessage>) {
-        let mut clients = self.clients.write().await;
-        clients.insert(client_id, tx);
-        info!("Client added. Total clients: {}", clients.len());
-    }
-
-    pub async fn remove_client(&self, client_id: &str) {
-        let mut clients = self.clients.write().await;
-        clients.remove(client_id);
-        info!("Client removed. Total clients: {}", clients.len());
-    }
-
-    pub async fn broadcast(&self, message: ServerMessage) {
-        let clients = self.clients.read().await;
-        for (client_id, tx) in clients.iter() {
-            if let Err(e) = tx.send(message.clone()) {
-                error!("Failed to send to client {}: {}", client_id, e);
-            }
-        }
-    }
-}
 
 struct PtySession {
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
@@ -73,7 +41,6 @@ struct PtySession {
 struct WsState {
     client_id: ClientId,
     current_pty: Arc<Mutex<Option<PtySession>>>,
-    current_session: Arc<Mutex<Option<String>>>,
     audio_tx: Option<mpsc::UnboundedSender<ServerMessage>>,
 }
 
@@ -84,7 +51,7 @@ pub async fn ws_handler(
     ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 
-async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
+async fn handle_socket(socket: WebSocket, _state: Arc<AppState>) {
     let client_id = Uuid::new_v4().to_string();
     info!("New WebSocket connection established: {}", client_id);
 
@@ -93,18 +60,11 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     // Create channel for server messages
     let (tx, mut rx) = mpsc::unbounded_channel::<ServerMessage>();
     
-    // Register client with the manager
-    state.client_manager.add_client(client_id.clone(), tx.clone()).await;
-    
     let mut ws_state = WsState {
         client_id: client_id.clone(),
         current_pty: Arc::new(Mutex::new(None)),
-        current_session: Arc::new(Mutex::new(None)),
         audio_tx: None,
     };
-    
-    // Clone client_id for the spawned task
-    let _task_client_id = client_id.clone();
     
     // Spawn task to forward server messages to WebSocket
     tokio::spawn(async move {
@@ -137,7 +97,6 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
 
     // Cleanup
     cleanup_session(&ws_state).await;
-    state.client_manager.remove_client(&client_id).await;
 }
 
 async fn handle_message(
@@ -195,26 +154,13 @@ async fn handle_message(
         
         WebSocketMessage::SelectWindow { session_name, window_index } => {
             debug!("Selecting window {} in session {}", window_index, session_name);
-            
-            // First, ensure we're in the right session
-            let current_session = state.current_session.lock().await;
-            if current_session.as_ref() != Some(&session_name) {
-                drop(current_session);
-                // Need to switch sessions first
-                info!("Switching to session {} before selecting window", session_name);
-                attach_to_session(tx, state, &session_name, 80, 24).await?;
-            }
-            
-            // Now select the window using tmux command
             match tmux::select_window(&session_name, &window_index.to_string()).await {
                 Ok(_) => {
-                    // Send tmux key sequence to switch window
+                    // Send refresh command to PTY
                     let pty_opt = state.current_pty.lock().await;
                     if let Some(ref pty) = *pty_opt {
                         let mut writer = pty.writer.lock().await;
-                        // Send Ctrl-A (tmux prefix) followed by window number
-                        writer.write_all(&[0x01])?; // Ctrl-A
-                        writer.write_all(window_index.to_string().as_bytes())?;
+                        writer.write_all(b"\x0c")?; // Ctrl-L
                         writer.flush()?;
                     }
                     
@@ -266,152 +212,82 @@ async fn handle_message(
     Ok(())
 }
 
-async fn attach_to_session(
+async fn switch_to_session(
     tx: &mpsc::UnboundedSender<ServerMessage>,
     state: &WsState,
     session_name: &str,
-    cols: u16,
-    rows: u16,
 ) -> anyhow::Result<()> {
-    // Update current session
-    {
-        let mut current = state.current_session.lock().await;
-        *current = Some(session_name.to_string());
+    // Stop any existing output capture
+    let mut output_task = state.output_task.lock().await;
+    if let Some(task) = output_task.take() {
+        task.abort();
     }
     
-    // Clean up any existing PTY session first
-    let mut pty_guard = state.current_pty.lock().await;
-    if let Some(old_pty) = pty_guard.take() {
-        debug!("Cleaning up previous PTY session for tmux: {}", old_pty.tmux_session);
-        // Kill the child process
-        {
-            let mut child = old_pty.child.lock().await;
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        // Abort the reader task
-        old_pty.reader_task.abort();
-        let _ = old_pty.reader_task.await;
+    // Switch to the new session
+    state.session_manager.switch_session(session_name).await?;
+    
+    // Get initial content
+    let initial_content = state.session_manager.capture_pane().await?;
+    if !initial_content.is_empty() {
+        tx.send(ServerMessage::Output { data: initial_content })?;
     }
     
-    // Small delay to ensure cleanup is complete
-    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-    
-    // Create new PTY session
-    debug!("Creating new PTY session for: {}", session_name);
-    
-    let pty_system = native_pty_system();
-    let pair = pty_system.openpty(PtySize {
-        rows,
-        cols,
-        pixel_width: 0,
-        pixel_height: 0,
-    })?;
-    
-    let mut cmd = CommandBuilder::new("tmux");
-    cmd.args(&["attach-session", "-t", session_name]);
-    cmd.env("TERM", "xterm-256color");
-    cmd.env("COLORTERM", "truecolor");
-    
-    // Clear SSH-related environment variables that might confuse starship
-    cmd.env_remove("SSH_CLIENT");
-    cmd.env_remove("SSH_CONNECTION");
-    cmd.env_remove("SSH_TTY");
-    cmd.env_remove("SSH_AUTH_SOCK");
-    
-    // Set up proper environment for local terminal
-    cmd.env("WEBMUX", "1");
-    
-    // Get reader before we move master
-    let reader = pair.master.try_clone_reader()?;
-    
-    // Get writer and spawn command
-    let writer = pair.master.take_writer()?;
-    let writer = Arc::new(Mutex::new(writer));
-    
-    // First check if session exists, if not create it
-    let check_output = tokio::process::Command::new("tmux")
-        .args(&["has-session", "-t", session_name])
-        .output()
-        .await?;
-    
-    if !check_output.status.success() {
-        // Create the session first
-        info!("Session {} doesn't exist, creating it", session_name);
-        tmux::create_session(session_name).await?;
-    }
-    
-    let child = pair.slave.spawn_command(cmd)?;
-    let child: Arc<Mutex<Box<dyn portable_pty::Child + Send>>> = Arc::new(Mutex::new(child));
-    
-    // Set up reader task
+    // Start continuous capture
     let tx_clone = tx.clone();
-    let client_id = state.client_id.clone();
-    let reader_task = tokio::task::spawn_blocking(move || {
-        let mut reader = reader;
-        let mut buffer = vec![0u8; 8192];
-        let mut consecutive_errors = 0;
+    let session_manager = state.session_manager.clone();
+    let session = session_name.to_string();
+    
+    let capture_task = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
+        let mut last_content = String::new();
+        let mut last_line_count = 0;
         
         loop {
-            match reader.read(&mut buffer) {
-                Ok(0) => {
-                    info!("PTY EOF for client {}", client_id);
-                    break;
-                }
-                Ok(n) => {
-                    consecutive_errors = 0;
-                    let data = String::from_utf8_lossy(&buffer[..n]).to_string();
+            interval.tick().await;
+            
+            match session_manager.capture_pane().await {
+                Ok(content) => {
+                    let current_lines: Vec<&str> = content.lines().collect();
+                    let current_line_count = current_lines.len();
                     
-                    // Send in chunks if needed
-                    const MAX_CHUNK_SIZE: usize = 32 * 1024;
-                    if data.len() > MAX_CHUNK_SIZE {
-                        for chunk in data.as_bytes().chunks(MAX_CHUNK_SIZE) {
-                            let chunk_str = String::from_utf8_lossy(chunk).to_string();
-                            let output = ServerMessage::Output { data: chunk_str };
-                            if tx_clone.send(output).is_err() {
-                                error!("Client {} disconnected, stopping PTY reader", client_id);
+                    // Detect what changed
+                    if content != last_content {
+                        // If content scrolled (new lines added at bottom)
+                        if current_line_count > last_line_count {
+                            // Send only new lines
+                            let new_lines = current_lines[last_line_count..]
+                                .join("\n");
+                            if !new_lines.is_empty() {
+                                let msg = ServerMessage::Output { data: new_lines + "\n" };
+                                if tx_clone.send(msg).is_err() {
+                                    break;
+                                }
+                            }
+                        } else {
+                            // Full refresh (cleared screen, etc)
+                            let msg = ServerMessage::Output { data: content.clone() };
+                            if tx_clone.send(msg).is_err() {
                                 break;
                             }
                         }
-                    } else {
-                        let output = ServerMessage::Output { data };
-                        if tx_clone.send(output).is_err() {
-                            error!("Client {} disconnected, stopping PTY reader", client_id);
-                            break;
-                        }
+                        
+                        last_content = content;
+                        last_line_count = current_line_count;
                     }
                 }
                 Err(e) => {
-                    consecutive_errors += 1;
-                    if consecutive_errors > 5 {
-                        error!("Too many consecutive PTY read errors for client {}: {}", client_id, e);
-                        break;
-                    }
-                    error!("PTY read error for client {} (attempt {}): {}", client_id, consecutive_errors, e);
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    error!("Failed to capture pane: {}", e);
                 }
             }
         }
-        
-        let _ = tx_clone.send(ServerMessage::Disconnected);
     });
     
-    let pty_session = PtySession {
-        writer: writer.clone(),
-        master: Arc::new(Mutex::new(pair.master)),
-        reader_task,
-        child,
-        tmux_session: session_name.to_string(),
-    };
-    
-    *pty_guard = Some(pty_session);
-    drop(pty_guard);
+    *output_task = Some(capture_task);
     
     // Send attached confirmation
-    let response = ServerMessage::Attached {
+    tx.send(ServerMessage::Attached {
         session_name: session_name.to_string(),
-    };
-    tx.send(response)?;
+    })?;
     
     Ok(())
 }
@@ -419,24 +295,14 @@ async fn attach_to_session(
 async fn cleanup_session(state: &WsState) {
     info!("Cleaning up session for client: {}", state.client_id);
     
-    // Clean up PTY session
-    let mut pty_guard = state.current_pty.lock().await;
-    if let Some(pty) = pty_guard.take() {
-        info!("Cleaning up PTY for tmux session: {}", pty.tmux_session);
-        
-        // Kill the child process first
-        {
-            let mut child = pty.child.lock().await;
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        
-        // Abort the reader task
-        pty.reader_task.abort();
-        
-        // Writer and master will be dropped automatically
+    // Stop output capture task
+    let mut output_task = state.output_task.lock().await;
+    if let Some(task) = output_task.take() {
+        task.abort();
     }
-    drop(pty_guard);
+    
+    // Clean up session manager
+    state.session_manager.cleanup().await;
     
     // Clean up audio streaming
     if let Some(ref audio_tx) = state.audio_tx {

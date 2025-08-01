@@ -64,6 +64,7 @@
         @select="selectSession"
         @refresh="refetch"
         @create="handleCreateSession"
+        @kill="handleKillSession"
         @rename="handleRenameSession"
         @select-window="handleSelectWindow"
         @toggle-sidebar="toggleSidebar"
@@ -200,20 +201,29 @@ const { data: sessions = [], refetch, isLoading } = useQuery({
     console.log('Sessions fetched:', result)
     return result
   },
-  refetchInterval: 5000,
-  staleTime: 0, // Always fetch fresh data
-  cacheTime: 0 // Don't cache to ensure fresh data
+  refetchInterval: 60000, // Reduced to 60s as fallback since we have real-time updates
+  staleTime: 5000, // Cache for 5 seconds
+  cacheTime: 10000 // Keep in cache for 10 seconds
 })
 
 
 const handleCreateSession = async (sessionName: string): Promise<void> => {
+  // Create optimistic session
+  const optimisticSession: TmuxSession = {
+    name: sessionName,
+    attached: false,
+    created: new Date().toISOString() as any,
+    windows: 1,
+    dimensions: '80x24'
+  }
+  
+  // Optimistically add to sessions
+  queryClient.setQueryData<TmuxSession[]>(['sessions'], old => [...(old || []), optimisticSession])
+  
   try {
     const result = await tmuxApi.createSession(sessionName)
     
     if (result.success && result.sessionName) {
-      // Immediately refetch the sessions
-      await refetch()
-      
       // Select the new session
       currentSession.value = result.sessionName
       
@@ -221,9 +231,15 @@ const handleCreateSession = async (sessionName: string): Promise<void> => {
       if (isMobile.value) {
         sidebarCollapsed.value = true
       }
+      
+      // Real update will come through WebSocket
     }
   } catch (error: any) {
     console.error('Failed to create session:', error)
+    // Revert optimistic update
+    queryClient.setQueryData<TmuxSession[]>(['sessions'], old => 
+      old?.filter(s => s.name !== sessionName) || []
+    )
     
     let errorMessage = 'Failed to create session.'
     if (error?.response?.data?.error) {
@@ -237,8 +253,10 @@ const handleCreateSession = async (sessionName: string): Promise<void> => {
 }
 
 const handleKillSession = async (sessionName: string): Promise<void> => {
+  console.log('App.vue handleKillSession called for:', sessionName)
   try {
     await tmuxApi.killSession(sessionName)
+    console.log('Successfully killed session:', sessionName)
     
     // Clear current session if it's the one being killed
     if (currentSession.value === sessionName) {
