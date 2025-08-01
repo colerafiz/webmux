@@ -207,9 +207,14 @@ const handleCreateSession = async (sessionName: string): Promise<void> => {
     const result = await tmuxApi.createSession(sessionName)
     console.log('Create session result:', result)
     
+    // Invalidate and wait for the sessions to be refetched
     await queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    await refetch()
     
-    // Auto-select the new session immediately
+    // Add a small delay to ensure the session is fully created in tmux
+    await new Promise(resolve => setTimeout(resolve, 200))
+    
+    // Auto-select the new session after ensuring data is refreshed
     if (result.success && result.sessionName) {
       currentSession.value = result.sessionName
       // On mobile, close sidebar after selecting

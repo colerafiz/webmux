@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { tmuxApi } from '@/api/tmux'
 import type { TmuxWindow } from '@/types'
 
@@ -171,9 +171,16 @@ const loadWindows = async (): Promise<void> => {
     loading.value = true
     error.value = false
     windows.value = await tmuxApi.getWindows(props.sessionName)
-  } catch (err) {
+  } catch (err: any) {
     error.value = true
-    console.error('Failed to load windows:', err)
+    console.error('Failed to load windows for session:', props.sessionName, err)
+    // If it's a 404, the session might not exist yet
+    if (err?.response?.status === 404) {
+      // Retry after a short delay
+      setTimeout(() => {
+        loadWindows()
+      }, 500)
+    }
   } finally {
     loading.value = false
   }
@@ -268,6 +275,14 @@ onMounted(() => {
   newWindowName.value = ''
   
   loadWindows()
+})
+
+// Watch for session name changes and reload windows
+watch(() => props.sessionName, (newSessionName, oldSessionName) => {
+  if (newSessionName !== oldSessionName) {
+    console.log('Session changed from', oldSessionName, 'to', newSessionName, '- reloading windows')
+    loadWindows()
+  }
 })
 
 defineExpose({

@@ -5,5 +5,68 @@
     "cwd": "/home/cyrus/git/swve/webmux-dev",
     "hook_event_name": "UserPromptSubmit",
     "prompt": "It looks like my dev branch is having issues with the API or something, I am not seeing any of my tmux sessions and all the system info at top of page shows 0. "
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Do not change any code, or do anything. But would it be possible to maintain current functionalities but redo the backend with rust instead ? Also keep this a mono repo though"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Create a GH issue for it and we will implement it another time"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Please look at the issue for the repo and begin working on it in the dev branch! We need to rewrite the backend in rust. Please remove all the old stuff that is no longer needed afterwards too!"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Can we enable auto-reload on backend when we start both of them too?"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "We got errors about not loading the SSL certficates and when I try to use app its not loading anything from backend"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Got an error, address already in use (os error 98)"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "When I am switching between sessions I am getting the error loading windows and its not working.... Plese think really hard and double check the rust api, it works at first and breaks when I use the sidebar and try to switch to another session"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "got error already in use thign"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "can you commit and push to dev branch"
   }
 ]

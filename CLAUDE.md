@@ -4,18 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WebMux is a Progressive Web App (PWA) that provides a web-based TMUX session viewer, allowing users to interact with TMUX sessions through a browser interface. It consists of a Node.js backend server and a Vue 3 frontend application with full mobile support and installability.
+WebMux is a Progressive Web App (PWA) that provides a web-based TMUX session viewer, allowing users to interact with TMUX sessions through a browser interface. It consists of a Rust backend server and a Vue 3 frontend application with full mobile support and installability.
 
 ## Common Commands
 
 ### Development
-- **Run the development environment**: `npm run dev` (starts both backend server and frontend client concurrently)
+- **Run the development environment**: `npm run dev` (starts both Rust backend and frontend client concurrently)
 - **Run with HTTPS**: `npm run dev:https` (starts both servers with HTTPS enabled)
-- **Backend server only**: `npm run server` (runs with nodemon for auto-restart)
+- **Backend server only**: `npm run rust:dev` (runs with cargo-watch for auto-restart)
 - **Frontend client only**: `npm run client` (runs Vite dev server)
-- **Frontend with HTTPS**: `npm run client:https` (runs Vite with HTTPS)
-- **Build for production**: `npm run build`
+- **Build for production**: `npm run build` (builds both Rust backend and frontend)
 - **Preview production build**: `npm run preview`
+- **Build Rust backend**: `npm run rust:build` (creates optimized release binary)
+- **Check Rust code**: `npm run rust:check` (runs cargo check)
+- **Test Rust backend**: `npm run rust:test` (runs cargo test)
+
+### Requirements
+- **Rust**: Install from https://rustup.rs/
+- **cargo-watch**: Install with `cargo install cargo-watch` for auto-restart during development
 
 ### HTTPS Setup
 WebMux supports HTTPS with self-signed certificates:
@@ -38,12 +44,13 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
 
 ## Architecture
 
-### Backend (Node.js + Express + TypeScript)
-- **Main server**: `server.ts` - Express server with WebSocket support for terminal sessions
-- **TMUX handler**: `tmux-handler.ts` - Dedicated TMUX command handling logic
-- **Type definitions**: `backend-types.ts` - TypeScript types for backend
-- **WebSocket protocol**: Uses `ws` library with TypeScript types for real-time communication
-- **Terminal emulation**: Uses `node-pty` for pseudo-terminal creation and TMUX attachment
+### Backend (Rust + Axum)
+- **Main server**: `backend-rust/src/main.rs` - Axum server with WebSocket support for terminal sessions
+- **TMUX handler**: `backend-rust/src/tmux/mod.rs` - Dedicated TMUX command handling logic
+- **Type definitions**: `backend-rust/src/types/mod.rs` - Rust types for backend
+- **WebSocket protocol**: Uses `axum::ws` and `tokio-tungstenite` for real-time communication
+- **Terminal emulation**: Uses `portable-pty` for cross-platform pseudo-terminal creation and TMUX attachment
+- **Audio streaming**: `backend-rust/src/audio/mod.rs` - System audio capture and streaming via ffmpeg
 
 ### Frontend (Vue 3 + Vite + TypeScript)
 - **Entry point**: `src/main.ts` - Vue app initialization with Vue Query
@@ -63,9 +70,9 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
 - **State management**: @tanstack/vue-query for server state
 - **Terminal emulator**: @xterm/xterm with fit addon
 - **Styling**: Tailwind CSS
-- **Backend runtime**: Node.js with Express
-- **Real-time communication**: WebSocket (ws library)
-- **Terminal interface**: node-pty for pseudo-terminal support
+- **Backend runtime**: Rust with Axum web framework
+- **Real-time communication**: WebSocket (axum::ws)
+- **Terminal interface**: portable-pty for cross-platform pseudo-terminal support
 
 ## API Endpoints
 

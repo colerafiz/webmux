@@ -42,33 +42,33 @@ export const tmuxApi = {
   },
 
   async killSession(sessionName: string): Promise<SessionActionResponse> {
-    const { data } = await axios.post<SessionActionResponse>(`${API_BASE}/sessions/${sessionName}/kill`)
+    const { data } = await axios.post<SessionActionResponse>(`${API_BASE}/sessions/${encodeURIComponent(sessionName)}/kill`)
     return data
   },
 
   async renameSession(sessionName: string, newName: string): Promise<SessionActionResponse> {
-    const { data } = await axios.post<SessionActionResponse>(`${API_BASE}/sessions/${sessionName}/rename`, { newName })
+    const { data } = await axios.post<SessionActionResponse>(`${API_BASE}/sessions/${encodeURIComponent(sessionName)}/rename`, { newName })
     return data
   },
 
   // Window management
   async getWindows(sessionName: string): Promise<TmuxWindow[]> {
-    const { data } = await axios.get<WindowsListResponse>(`${API_BASE}/sessions/${sessionName}/windows`)
+    const { data } = await axios.get<WindowsListResponse>(`${API_BASE}/sessions/${encodeURIComponent(sessionName)}/windows`)
     return data.windows
   },
 
   async createWindow(sessionName: string, windowName?: string): Promise<WindowCreateResponse> {
-    const { data } = await axios.post<WindowCreateResponse>(`${API_BASE}/sessions/${sessionName}/windows`, { windowName })
+    const { data } = await axios.post<WindowCreateResponse>(`${API_BASE}/sessions/${encodeURIComponent(sessionName)}/windows`, { windowName })
     return data
   },
 
   async killWindow(sessionName: string, windowIndex: number): Promise<SessionActionResponse> {
-    const { data } = await axios.delete<SessionActionResponse>(`${API_BASE}/sessions/${sessionName}/windows/${windowIndex}`)
+    const { data } = await axios.delete<SessionActionResponse>(`${API_BASE}/sessions/${encodeURIComponent(sessionName)}/windows/${windowIndex}`)
     return data
   },
 
   async renameWindow(sessionName: string, windowIndex: number, newName: string): Promise<SessionActionResponse> {
-    const { data } = await axios.post<SessionActionResponse>(`${API_BASE}/sessions/${sessionName}/windows/${windowIndex}/rename`, { newName })
+    const { data } = await axios.post<SessionActionResponse>(`${API_BASE}/sessions/${encodeURIComponent(sessionName)}/windows/${windowIndex}/rename`, { newName })
     return data
   }
 }
