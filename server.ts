@@ -24,8 +24,9 @@ import type {
 const execAsync = promisify(exec);
 
 const app = express();
-const port = 3000;
-const httpsPort = 3443;
+// Dev branch uses different ports to allow running alongside main
+const port = 4000; // Main uses 3000
+const httpsPort = 4443; // Main uses 3443
 
 // HTTPS configuration
 // Fix path resolution for ts-node vs compiled
