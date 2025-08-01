@@ -7,6 +7,37 @@
     ]"
     style="background: var(--bg-secondary); border-color: var(--border-primary)"
   >
+    <!-- Modal for session name input -->
+    <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+        <h3 class="text-lg font-semibold mb-4" style="color: var(--text-primary)">Create New Session</h3>
+        <input 
+          v-model="newSessionName"
+          type="text" 
+          placeholder="Session name"
+          class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
+          @keyup.enter="confirmCreate"
+          ref="sessionNameInput"
+        />
+        <div class="flex justify-end space-x-2 mt-4">
+          <button 
+            @click="cancelCreate"
+            class="px-4 py-2 text-sm border rounded"
+            style="background: var(--bg-secondary); border-color: var(--border-primary); color: var(--text-secondary)"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="confirmCreate"
+            class="px-4 py-2 text-sm border rounded"
+            style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="p-3 border-b" style="border-color: var(--border-primary)">
       <div class="flex items-center justify-between mb-3">
         <h2 
@@ -91,39 +122,65 @@
   </aside>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+import { ref, nextTick } from 'vue'
 import SessionItem from './SessionItem.vue'
+import type { TmuxSession, TmuxWindow } from '@/types'
 
-defineProps({
-  sessions: {
-    type: Array,
-    default: () => []
-  },
-  currentSession: {
-    type: String,
-    default: null
-  },
-  isCollapsed: {
-    type: Boolean,
-    default: false
-  },
-  isMobile: {
-    type: Boolean,
-    default: false
-  }
+interface Props {
+  sessions: TmuxSession[]
+  currentSession: string | null
+  isCollapsed: boolean
+  isMobile: boolean
+}
+
+withDefaults(defineProps<Props>(), {
+  sessions: () => [],
+  currentSession: null,
+  isCollapsed: false,
+  isMobile: false
 })
 
-const emit = defineEmits(['select', 'refresh', 'kill', 'rename', 'create', 'select-window', 'toggle-sidebar'])
+const emit = defineEmits<{
+  select: [sessionName: string]
+  refresh: []
+  kill: [sessionName: string]
+  rename: [sessionName: string, newName: string]
+  create: [sessionName: string]
+  'select-window': [sessionName: string, window: TmuxWindow]
+  'toggle-sidebar': []
+}>()
 
-const handleCreate = () => {
-  const sessionName = prompt('Session name:', `s${Date.now().toString().slice(-6)}`)
-  if (sessionName) {
-    emit('create', sessionName)
+// Modal state
+const showCreateModal = ref(false)
+const newSessionName = ref('')
+const sessionNameInput = ref<HTMLInputElement>()
+
+const handleCreate = (): void => {
+  console.log('handleCreate called')
+  showCreateModal.value = true
+  newSessionName.value = `s${Date.now().toString().slice(-6)}`
+  nextTick(() => {
+    sessionNameInput.value?.focus()
+    sessionNameInput.value?.select()
+  })
+}
+
+const confirmCreate = (): void => {
+  if (newSessionName.value.trim()) {
+    console.log('Creating session with name:', newSessionName.value)
+    emit('create', newSessionName.value.trim())
+    showCreateModal.value = false
+    newSessionName.value = ''
   }
 }
 
-const handleKill = (sessionName) => {
+const cancelCreate = (): void => {
+  showCreateModal.value = false
+  newSessionName.value = ''
+}
+
+const handleKill = (sessionName: string): void => {
   if (confirm(`Are you sure you want to kill session "${sessionName}"?`)) {
     emit('kill', sessionName)
   }

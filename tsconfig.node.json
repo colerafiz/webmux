@@ -1,0 +1,44 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    // Override settings for Node.js backend
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    
+    // Allow CommonJS modules for Node.js compatibility
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    
+    // Output settings for Node.js
+    "outDir": "./dist",
+    "rootDir": "./",
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    
+    // Path mappings
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "server.ts",
+    "server-improved.ts",
+    "tmux-handler.ts",
+    "*.ts",
+    "types/**/*.d.ts"
+  ],
+  "exclude": [
+    "src/**/*",
+    "vite.config.js",
+    "vite.config.ts",
+    "dist",
+    "node_modules"
+  ]
+}

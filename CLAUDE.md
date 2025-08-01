@@ -38,23 +38,24 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
 
 ## Architecture
 
-### Backend (Node.js + Express)
-- **Main server**: `server.js` - Express server with WebSocket support for terminal sessions
-- **Alternative implementation**: `server-improved.js` - Contains improved session handling
-- **TMUX handler**: `tmux-handler.js` - Dedicated TMUX command handling logic
-- **WebSocket protocol**: Uses `ws` library for real-time communication
+### Backend (Node.js + Express + TypeScript)
+- **Main server**: `server.ts` - Express server with WebSocket support for terminal sessions
+- **TMUX handler**: `tmux-handler.ts` - Dedicated TMUX command handling logic
+- **Type definitions**: `backend-types.ts` - TypeScript types for backend
+- **WebSocket protocol**: Uses `ws` library with TypeScript types for real-time communication
 - **Terminal emulation**: Uses `node-pty` for pseudo-terminal creation and TMUX attachment
 
-### Frontend (Vue 3 + Vite)
-- **Entry point**: `src/main.js` - Vue app initialization with Vue Query
-- **Main component**: `src/App.vue` - Root application component
-- **Components**:
+### Frontend (Vue 3 + Vite + TypeScript)
+- **Entry point**: `src/main.ts` - Vue app initialization with Vue Query
+- **Main component**: `src/App.vue` - Root application component with TypeScript
+- **Components** (all using TypeScript):
   - `SessionList.vue` - Displays available TMUX sessions
   - `SessionItem.vue` - Individual session item in the list
   - `TerminalView.vue` - Terminal emulator view using xterm.js
   - `WindowList.vue` - TMUX window management
-- **Composables**: `useWebSocket.js` - WebSocket connection management
-- **API**: `src/api/tmux.js` - REST API client for TMUX operations
+- **Composables**: `useWebSocket.ts` - WebSocket connection management with types
+- **API**: `src/api/tmux.ts` - REST API client for TMUX operations with typed responses
+- **Type definitions**: `src/types/index.ts` - Shared TypeScript types
 
 ### Key Technologies
 - **Frontend framework**: Vue 3 with Composition API

@@ -114,29 +114,27 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
+import type { TerminalSize, OutputMessage, AttachSessionMessage, ResizeMessage, InputMessage } from '@/types'
+import type { UseWebSocketReturn } from '@/composables/useWebSocket'
 
-const props = defineProps({
-  session: {
-    type: String,
-    required: true
-  },
-  ws: {
-    type: Object,
-    required: true
-  }
-})
+interface Props {
+  session: string
+  ws: UseWebSocketReturn
+}
 
-const terminalContainer = ref(null)
-let terminal = null
-let fitAddon = null
-let focusInterval = null
-const terminalSize = ref({ cols: 80, rows: 24 })
-const ctrlPressed = ref(false)
+const props = defineProps<Props>()
+
+const terminalContainer = ref<HTMLDivElement | null>(null)
+let terminal: Terminal | null = null
+let fitAddon: FitAddon | null = null
+// Removed unused focusInterval
+const terminalSize = ref<TerminalSize>({ cols: 80, rows: 24 })
+const ctrlPressed = ref<boolean>(false)
 const isMobile = computed(() => window.innerWidth < 768)
 
 onMounted(() => {
@@ -149,7 +147,7 @@ onMounted(() => {
       foreground: '#c9d1d9',
       cursor: '#c9d1d9',
       cursorAccent: '#000000',
-      selection: 'rgba(88, 166, 255, 0.3)',
+      selectionBackground: 'rgba(88, 166, 255, 0.3)',
       black: '#000000',
       red: '#ff7b72',
       green: '#7ee787',
@@ -169,6 +167,7 @@ onMounted(() => {
     },
     scrollback: 10000,
     tabStopWidth: 8,
+    // @ts-ignore - bellStyle is a valid option but not in types
     bellStyle: 'none',
     drawBoldTextInBrightColors: true,
     lineHeight: 1.2
@@ -177,43 +176,51 @@ onMounted(() => {
   fitAddon = new FitAddon()
   terminal.loadAddon(fitAddon)
   
-  terminal.open(terminalContainer.value)
+  if (terminalContainer.value) {
+    terminal.open(terminalContainer.value)
+  }
   
   // Initial fit with a small delay to ensure container is properly sized
   setTimeout(() => {
-    fitAddon.fit()
-    terminal.focus()
+    if (fitAddon) fitAddon.fit()
+    if (terminal) terminal.focus()
   }, 100)
 
-  terminal.onData((data) => {
-    if (props.ws.isConnected.value) {
-      // If CTRL is toggled on mobile, modify the input
-      if (ctrlPressed.value && data.length === 1) {
-        const code = data.toUpperCase().charCodeAt(0) - 64
-        data = String.fromCharCode(code)
-        ctrlPressed.value = false // Auto-release after use
+  if (terminal) {
+    terminal.onData((data) => {
+      if (props.ws.isConnected.value) {
+        // If CTRL is toggled on mobile, modify the input
+        if (ctrlPressed.value && data.length === 1) {
+          const code = data.toUpperCase().charCodeAt(0) - 64
+          data = String.fromCharCode(code)
+          ctrlPressed.value = false // Auto-release after use
+        }
+        
+        const message: InputMessage = {
+          type: 'input',
+          data: data
+        }
+        props.ws.send(message)
       }
-      
-      props.ws.send({
-        type: 'input',
-        data: data
-      })
-    }
-  })
+    })
+  }
 
-  terminal.onResize((size) => {
-    terminalSize.value = { cols: size.cols, rows: size.rows }
-    if (props.ws.isConnected.value) {
-      props.ws.send({
-        type: 'resize',
-        cols: size.cols,
-        rows: size.rows
-      })
-    }
-  })
+  if (terminal) {
+    terminal.onResize((size) => {
+      terminalSize.value = { cols: size.cols, rows: size.rows }
+      if (props.ws.isConnected.value) {
+        const message: ResizeMessage = {
+          type: 'resize',
+          cols: size.cols,
+          rows: size.rows
+        }
+        props.ws.send(message)
+      }
+    })
+  }
 
   // Direct terminal writing - no client buffering to avoid freeze issues
-  props.ws.onMessage('output', (data) => {
+  props.ws.onMessage<OutputMessage>('output', (data) => {
     if (terminal) {
       try {
         terminal.write(data.data)
@@ -234,19 +241,21 @@ onMounted(() => {
   })
 
   props.ws.onMessage('disconnected', () => {
-    terminal.write('\r\n\r\n[Session disconnected]\r\n')
+    if (terminal) terminal.write('\r\n\r\n[Session disconnected]\r\n')
   })
 
   props.ws.onMessage('attached', () => {
-    terminal.focus()
+    if (terminal) terminal.focus()
     handleResize()
   })
   
   // Global focus management
   // Focus terminal on click
-  terminalContainer.value.addEventListener('click', () => {
-    terminal.focus()
-  })
+  if (terminalContainer.value) {
+    terminalContainer.value.addEventListener('click', () => {
+      if (terminal) terminal.focus()
+    })
+  }
   
   // Remove the focus interval - it's too aggressive
 
@@ -256,7 +265,9 @@ onMounted(() => {
   
   // Also observe the terminal container for size changes
   const resizeObserver = new ResizeObserver(debouncedResize)
-  resizeObserver.observe(terminalContainer.value)
+  if (terminalContainer.value) {
+    resizeObserver.observe(terminalContainer.value)
+  }
 })
 
 onUnmounted(() => {
@@ -267,7 +278,7 @@ onUnmounted(() => {
   props.ws.offMessage('disconnected')
   props.ws.offMessage('attached')
   window.removeEventListener('resize', debouncedResize)
-  clearTimeout(resizeTimeout)
+  if (resizeTimeout) clearTimeout(resizeTimeout)
 })
 
 watch(() => props.session, () => {
@@ -277,7 +288,7 @@ watch(() => props.session, () => {
   attachToSession()
 })
 
-const attachToSession = async () => {
+const attachToSession = async (): Promise<void> => {
   // Ensure WebSocket is connected
   await props.ws.ensureConnected()
   
@@ -296,15 +307,16 @@ const attachToSession = async () => {
     }
   }
   
-  props.ws.send({
+  const message: AttachSessionMessage = {
     type: 'attach-session',
     sessionName: props.session,
     cols: cols,
     rows: rows
-  })
+  }
+  props.ws.send(message)
 }
 
-const handleResize = () => {
+const handleResize = (): void => {
   if (fitAddon && terminal && terminalContainer.value) {
     try {
       // Ensure container has valid dimensions before fitting
@@ -316,11 +328,12 @@ const handleResize = () => {
         if (dimensions && dimensions.cols > 0 && dimensions.rows > 0) {
           terminalSize.value = { cols: dimensions.cols, rows: dimensions.rows }
           if (props.ws.isConnected.value) {
-            props.ws.send({
+            const message: ResizeMessage = {
               type: 'resize',
               cols: dimensions.cols,
               rows: dimensions.rows
-            })
+            }
+            props.ws.send(message)
           }
         }
       }
@@ -331,13 +344,13 @@ const handleResize = () => {
 }
 
 // Add a debounced resize handler for better performance
-let resizeTimeout = null
-const debouncedResize = () => {
-  clearTimeout(resizeTimeout)
+let resizeTimeout: ReturnType<typeof setTimeout> | null = null
+const debouncedResize = (): void => {
+  if (resizeTimeout) clearTimeout(resizeTimeout)
   resizeTimeout = setTimeout(handleResize, 100)
 }
 
-const focusTerminal = () => {
+const focusTerminal = (): void => {
   if (terminal) {
     terminal.focus()
     console.log('Terminal focused on click')
@@ -346,7 +359,7 @@ const focusTerminal = () => {
 
 // Mobile touch handling
 let touchStartTime = 0
-const handleTouchStart = (e) => {
+const handleTouchStart = (e: TouchEvent): void => {
   touchStartTime = Date.now()
   // Prevent default to avoid scrolling issues
   if (e.target === terminalContainer.value) {
@@ -354,7 +367,7 @@ const handleTouchStart = (e) => {
   }
 }
 
-const handleTouchEnd = (e) => {
+const handleTouchEnd = (_e: TouchEvent): void => {
   const touchDuration = Date.now() - touchStartTime
   // Only focus if it's a quick tap, not a scroll
   if (touchDuration < 200) {
@@ -363,10 +376,10 @@ const handleTouchEnd = (e) => {
 }
 
 // Mobile keyboard control methods
-const sendKey = (key) => {
+const sendKey = (key: string): void => {
   if (!terminal || !props.ws.isConnected.value) return
   
-  const keyMap = {
+  const keyMap: Record<string, string> = {
     'Escape': '\x1b',
     'Tab': '\t',
     'ArrowUp': '\x1b[A',
@@ -378,15 +391,16 @@ const sendKey = (key) => {
   const data = keyMap[key] || key
   
   // Send through WebSocket
-  props.ws.send({
+  const message: InputMessage = {
     type: 'input',
     data: data
-  })
+  }
+  props.ws.send(message)
   
   terminal.focus()
 }
 
-const sendCtrlKey = (key) => {
+const sendCtrlKey = (key: string): void => {
   console.log('sendCtrlKey called with:', key)
   if (!terminal || !props.ws.isConnected.value) {
     console.log('Terminal or WebSocket not ready')
@@ -400,17 +414,18 @@ const sendCtrlKey = (key) => {
   console.log('Sending Ctrl+' + key + ' as char code:', code)
   
   // Send through WebSocket
-  props.ws.send({
+  const message: InputMessage = {
     type: 'input',
     data: ctrlChar
-  })
+  }
+  props.ws.send(message)
   
   terminal.focus()
 }
 
-const toggleCtrl = () => {
+const toggleCtrl = (): void => {
   ctrlPressed.value = !ctrlPressed.value
-  terminal.focus()
+  if (terminal) terminal.focus()
   
   // Auto-release after 5 seconds
   if (ctrlPressed.value) {

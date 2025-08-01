@@ -1,0 +1,9 @@
+[
+  {
+    "session_id": "ddbc039f-109e-4f3f-b112-dbe54c225ff0",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/ddbc039f-109e-4f3f-b112-dbe54c225ff0.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "please commit and push everything"
+  }
+]
