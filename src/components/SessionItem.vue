@@ -93,6 +93,7 @@
     <WindowList
       v-if="showWindows && !isCollapsed"
       :session-name="session.name"
+      :is-active-session="isActive"
       @select-window="(window) => $emit('select-window', window)"
       @refresh="$emit('refresh')"
       ref="windowList"

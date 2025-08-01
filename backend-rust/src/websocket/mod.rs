@@ -18,19 +18,28 @@ use tokio::{
 };
 use tracing::{debug, error, info};
 use uuid::Uuid;
+use bytes::Bytes;
 
 use crate::{
     audio,
     tmux,
     types::*,
+    terminal_buffer::TerminalRingBuffer,
     AppState,
 };
 
 type ClientId = String;
 
+// Pre-serialized message for zero-copy broadcasting
+#[derive(Clone)]
+pub enum BroadcastMessage {
+    Text(Arc<String>),
+    Binary(Bytes),
+}
+
 // Client manager for broadcasting messages to all connected clients
 pub struct ClientManager {
-    clients: Arc<RwLock<HashMap<ClientId, mpsc::UnboundedSender<ServerMessage>>>>,
+    clients: Arc<RwLock<HashMap<ClientId, mpsc::UnboundedSender<BroadcastMessage>>>>,
 }
 
 impl ClientManager {
@@ -40,7 +49,7 @@ impl ClientManager {
         }
     }
 
-    pub async fn add_client(&self, client_id: ClientId, tx: mpsc::UnboundedSender<ServerMessage>) {
+    pub async fn add_client(&self, client_id: ClientId, tx: mpsc::UnboundedSender<BroadcastMessage>) {
         let mut clients = self.clients.write().await;
         clients.insert(client_id, tx);
         info!("Client added. Total clients: {}", clients.len());
@@ -53,10 +62,24 @@ impl ClientManager {
     }
 
     pub async fn broadcast(&self, message: ServerMessage) {
+        // Serialize once for all clients
+        if let Ok(serialized) = serde_json::to_string(&message) {
+            let msg = BroadcastMessage::Text(Arc::new(serialized));
+            let clients = self.clients.read().await;
+            for (client_id, tx) in clients.iter() {
+                if let Err(e) = tx.send(msg.clone()) {
+                    error!("Failed to send to client {}: {}", client_id, e);
+                }
+            }
+        }
+    }
+    
+    pub async fn broadcast_binary(&self, data: Bytes) {
+        let msg = BroadcastMessage::Binary(data);
         let clients = self.clients.read().await;
         for (client_id, tx) in clients.iter() {
-            if let Err(e) = tx.send(message.clone()) {
-                error!("Failed to send to client {}: {}", client_id, e);
+            if let Err(e) = tx.send(msg.clone()) {
+                error!("Failed to send binary to client {}: {}", client_id, e);
             }
         }
     }
@@ -68,13 +91,15 @@ struct PtySession {
     reader_task: JoinHandle<()>,
     child: Arc<Mutex<Box<dyn portable_pty::Child + Send>>>,
     tmux_session: String,
+    terminal_buffer: Arc<Mutex<TerminalRingBuffer>>,
 }
 
 struct WsState {
     client_id: ClientId,
     current_pty: Arc<Mutex<Option<PtySession>>>,
     current_session: Arc<Mutex<Option<String>>>,
-    audio_tx: Option<mpsc::UnboundedSender<ServerMessage>>,
+    audio_tx: Option<mpsc::UnboundedSender<BroadcastMessage>>,
+    message_tx: mpsc::UnboundedSender<BroadcastMessage>,
 }
 
 pub async fn ws_handler(
@@ -91,7 +116,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let (mut sender, mut receiver) = socket.split();
     
     // Create channel for server messages
-    let (tx, mut rx) = mpsc::unbounded_channel::<ServerMessage>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<BroadcastMessage>();
     
     // Register client with the manager
     state.client_manager.add_client(client_id.clone(), tx.clone()).await;
@@ -101,6 +126,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
         current_pty: Arc::new(Mutex::new(None)),
         current_session: Arc::new(Mutex::new(None)),
         audio_tx: None,
+        message_tx: tx.clone(),
     };
     
     // Clone client_id for the spawned task
@@ -109,8 +135,13 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     // Spawn task to forward server messages to WebSocket
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
-            if let Ok(json) = serde_json::to_string(&msg) {
-                let _ = sender.send(Message::Text(json)).await;
+            match msg {
+                BroadcastMessage::Text(json) => {
+                    let _ = sender.send(Message::Text(json.to_string())).await;
+                }
+                BroadcastMessage::Binary(data) => {
+                    let _ = sender.send(Message::Binary(data.to_vec())).await;
+                }
             }
         }
     });
@@ -120,7 +151,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
         match msg {
             Message::Text(text) => {
                 if let Ok(ws_msg) = serde_json::from_str::<WebSocketMessage>(&text) {
-                    if let Err(e) = handle_message(ws_msg, &mut ws_state, &tx).await {
+                    if let Err(e) = handle_message(ws_msg, &mut ws_state).await {
                         error!("Error handling message: {}", e);
                     }
                 }
@@ -143,18 +174,17 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
 async fn handle_message(
     msg: WebSocketMessage,
     state: &mut WsState,
-    tx: &mpsc::UnboundedSender<ServerMessage>,
 ) -> anyhow::Result<()> {
     match msg {
         WebSocketMessage::ListSessions => {
             let sessions = tmux::list_sessions().await.unwrap_or_default();
             let response = ServerMessage::SessionsList { sessions };
-            tx.send(response)?;
+            send_message(&state.message_tx, response).await?;
         }
         
         WebSocketMessage::AttachSession { session_name, cols, rows } => {
             info!("Attaching to session: {}", session_name);
-            attach_to_session(tx, state, &session_name, cols, rows).await?;
+            attach_to_session(state, &session_name, cols, rows).await?;
         }
         
         WebSocketMessage::Input { data } => {
@@ -187,10 +217,10 @@ async fn handle_message(
             }
         }
         
-        WebSocketMessage::ListWindows { session_name } => {
-            let windows = tmux::list_windows(&session_name).await.unwrap_or_default();
-            let response = ServerMessage::WindowsList { windows };
-            tx.send(response)?;
+        WebSocketMessage::ListWindows { session_name: _ } => {
+            // This message type isn't used anymore - frontend uses REST API
+            // Keeping for backwards compatibility but doing nothing
+            debug!("Received ListWindows message, but using REST API instead");
         }
         
         WebSocketMessage::SelectWindow { session_name, window_index } => {
@@ -202,34 +232,23 @@ async fn handle_message(
                 drop(current_session);
                 // Need to switch sessions first
                 info!("Switching to session {} before selecting window", session_name);
-                attach_to_session(tx, state, &session_name, 80, 24).await?;
+                attach_to_session(state, &session_name, 80, 24).await?;
             }
             
             // Now select the window using tmux command
             match tmux::select_window(&session_name, &window_index.to_string()).await {
                 Ok(_) => {
-                    // Send tmux key sequence to switch window
-                    let pty_opt = state.current_pty.lock().await;
-                    if let Some(ref pty) = *pty_opt {
-                        let mut writer = pty.writer.lock().await;
-                        // Send Ctrl-A (tmux prefix) followed by window number
-                        writer.write_all(&[0x01])?; // Ctrl-A
-                        writer.write_all(window_index.to_string().as_bytes())?;
-                        writer.flush()?;
-                    }
+                    // Don't send keys to PTY - just use tmux command
+                    // Sending keys can interfere with running programs like Claude Code
                     
                     let response = ServerMessage::WindowSelected {
                         success: true,
                         window_index: Some(window_index),
                         error: None,
                     };
-                    tx.send(response)?;
+                    send_message(&state.message_tx, response).await?;
                     
-                    // Refresh windows list
-                    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-                    let windows = tmux::list_windows(&session_name).await.unwrap_or_default();
-                    let windows_response = ServerMessage::WindowsList { windows };
-                    tx.send(windows_response)?;
+                    // Don't broadcast windows list - let frontend handle refreshing
                 }
                 Err(e) => {
                     let response = ServerMessage::WindowSelected {
@@ -237,13 +256,13 @@ async fn handle_message(
                         window_index: None,
                         error: Some(e.to_string()),
                     };
-                    tx.send(response)?;
+                    send_message(&state.message_tx, response).await?;
                 }
             }
         }
         
         WebSocketMessage::Ping => {
-            tx.send(ServerMessage::Pong)?;
+            send_message(&state.message_tx, ServerMessage::Pong).await?;
         }
         
         WebSocketMessage::AudioControl { action } => {
@@ -251,13 +270,16 @@ async fn handle_message(
             match action {
                 AudioAction::Start => {
                     info!("Starting audio streaming for client");
+                    let tx = state.message_tx.clone();
                     state.audio_tx = Some(tx.clone());
-                    audio::start_streaming(tx.clone()).await?;
+                    audio::start_streaming(tx).await?;
                 }
                 AudioAction::Stop => {
                     info!("Stopping audio streaming for client");
+                    if let Some(ref tx) = state.audio_tx {
+                        audio::stop_streaming_for_client(tx).await?;
+                    }
                     state.audio_tx = None;
-                    audio::stop_streaming_for_client(&tx).await?;
                 }
             }
         }
@@ -266,13 +288,20 @@ async fn handle_message(
     Ok(())
 }
 
+async fn send_message(tx: &mpsc::UnboundedSender<BroadcastMessage>, msg: ServerMessage) -> anyhow::Result<()> {
+    if let Ok(json) = serde_json::to_string(&msg) {
+        tx.send(BroadcastMessage::Text(Arc::new(json)))?;
+    }
+    Ok(())
+}
+
 async fn attach_to_session(
-    tx: &mpsc::UnboundedSender<ServerMessage>,
-    state: &WsState,
+    state: &mut WsState,
     session_name: &str,
     cols: u16,
     rows: u16,
 ) -> anyhow::Result<()> {
+    let tx = &state.message_tx;
     // Update current session
     {
         let mut current = state.current_session.lock().await;
@@ -344,40 +373,52 @@ async fn attach_to_session(
     let child = pair.slave.spawn_command(cmd)?;
     let child: Arc<Mutex<Box<dyn portable_pty::Child + Send>>> = Arc::new(Mutex::new(child));
     
-    // Set up reader task
+    // Set up reader task - DIRECT sending for now to fix the issue
     let tx_clone = tx.clone();
     let client_id = state.client_id.clone();
     let reader_task = tokio::task::spawn_blocking(move || {
         let mut reader = reader;
-        let mut buffer = vec![0u8; 8192];
+        let mut buffer = vec![0u8; 65536]; // Larger buffer for better throughput
         let mut consecutive_errors = 0;
+        let mut utf8_decoder = crate::terminal_buffer::Utf8StreamDecoder::new();
+        let mut pending_output = String::new();
+        let mut last_send = std::time::Instant::now();
         
         loop {
             match reader.read(&mut buffer) {
                 Ok(0) => {
                     info!("PTY EOF for client {}", client_id);
+                    // Send any pending output
+                    if !pending_output.is_empty() {
+                        let output = ServerMessage::Output { data: pending_output };
+                        if let Ok(json) = serde_json::to_string(&output) {
+                            let _ = tx_clone.send(BroadcastMessage::Text(Arc::new(json)));
+                        }
+                    }
                     break;
                 }
                 Ok(n) => {
                     consecutive_errors = 0;
-                    let data = String::from_utf8_lossy(&buffer[..n]).to_string();
                     
-                    // Send in chunks if needed
-                    const MAX_CHUNK_SIZE: usize = 32 * 1024;
-                    if data.len() > MAX_CHUNK_SIZE {
-                        for chunk in data.as_bytes().chunks(MAX_CHUNK_SIZE) {
-                            let chunk_str = String::from_utf8_lossy(chunk).to_string();
-                            let output = ServerMessage::Output { data: chunk_str };
-                            if tx_clone.send(output).is_err() {
-                                error!("Client {} disconnected, stopping PTY reader", client_id);
-                                break;
+                    // Decode and accumulate
+                    let (text, _) = utf8_decoder.decode_chunk(&buffer[..n]);
+                    if !text.is_empty() {
+                        pending_output.push_str(&text);
+                        
+                        // Send if we have enough data OR enough time has passed
+                        let should_send = pending_output.len() > 4096 || 
+                                         last_send.elapsed() > std::time::Duration::from_millis(16); // ~60fps
+                        
+                        if should_send && !pending_output.is_empty() {
+                            let output = ServerMessage::Output { data: pending_output.clone() };
+                            if let Ok(json) = serde_json::to_string(&output) {
+                                if tx_clone.send(BroadcastMessage::Text(Arc::new(json))).is_err() {
+                                    error!("Client {} disconnected, stopping PTY reader", client_id);
+                                    break;
+                                }
                             }
-                        }
-                    } else {
-                        let output = ServerMessage::Output { data };
-                        if tx_clone.send(output).is_err() {
-                            error!("Client {} disconnected, stopping PTY reader", client_id);
-                            break;
+                            pending_output.clear();
+                            last_send = std::time::Instant::now();
                         }
                     }
                 }
@@ -393,7 +434,10 @@ async fn attach_to_session(
             }
         }
         
-        let _ = tx_clone.send(ServerMessage::Disconnected);
+        let disconnected = ServerMessage::Disconnected;
+        if let Ok(json) = serde_json::to_string(&disconnected) {
+            let _ = tx_clone.send(BroadcastMessage::Text(Arc::new(json)));
+        }
     });
     
     let pty_session = PtySession {
@@ -402,6 +446,7 @@ async fn attach_to_session(
         reader_task,
         child,
         tmux_session: session_name.to_string(),
+        terminal_buffer: Arc::new(Mutex::new(TerminalRingBuffer::new())), // Keep but don't use yet
     };
     
     *pty_guard = Some(pty_session);
@@ -411,7 +456,7 @@ async fn attach_to_session(
     let response = ServerMessage::Attached {
         session_name: session_name.to_string(),
     };
-    tx.send(response)?;
+    send_message(tx, response).await?;
     
     Ok(())
 }
