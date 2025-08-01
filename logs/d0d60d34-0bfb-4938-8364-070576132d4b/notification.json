@@ -1,9 +1,0 @@
-[
-  {
-    "session_id": "d0d60d34-0bfb-4938-8364-070576132d4b",
-    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/d0d60d34-0bfb-4938-8364-070576132d4b.jsonl",
-    "cwd": "/home/cyrus/git/swve/webmux",
-    "hook_event_name": "Notification",
-    "message": "Claude is waiting for your input"
-  }
-]
