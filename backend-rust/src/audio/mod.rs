@@ -61,15 +61,41 @@ pub async fn stop_streaming() -> Result<()> {
 }
 
 
+async fn get_default_monitor_source() -> Result<String> {
+    // Get the default sink first
+    let output = Command::new("pactl")
+        .args(&["get-default-sink"])
+        .output()
+        .await?;
+    
+    if !output.status.success() {
+        return Err(anyhow::anyhow!("Failed to get default sink"));
+    }
+    
+    let sink = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    // Append .monitor to get the monitor source
+    Ok(format!("{}.monitor", sink))
+}
+
 async fn start_ffmpeg(state: &mut AudioState) -> Result<()> {
     info!("Starting audio streaming...");
     state.is_streaming = true;
     
     // Determine platform-specific input args
-    let input_args = if cfg!(target_os = "linux") {
-        vec!["-f", "pulse", "-i", "default"]
+    let (input_source, input_args) = if cfg!(target_os = "linux") {
+        // First try to get the default monitor source
+        match get_default_monitor_source().await {
+            Ok(source) => {
+                info!("Using PulseAudio monitor source: {}", source);
+                (source, vec!["-f", "pulse", "-i"])
+            }
+            Err(_) => {
+                info!("Using default PulseAudio source");
+                ("default".to_string(), vec!["-f", "pulse", "-i"])
+            }
+        }
     } else if cfg!(target_os = "macos") {
-        vec!["-f", "avfoundation", "-i", ":0"]
+        (":0".to_string(), vec!["-f", "avfoundation", "-i"])
     } else {
         error!("Unsupported platform for audio capture");
         state.is_streaming = false;
@@ -80,6 +106,7 @@ async fn start_ffmpeg(state: &mut AudioState) -> Result<()> {
     // Spawn ffmpeg process
     let mut child = Command::new("ffmpeg")
         .args(&input_args)
+        .arg(&input_source)
         .args(&[
             "-acodec", "libopus",
             "-b:a", "128k",

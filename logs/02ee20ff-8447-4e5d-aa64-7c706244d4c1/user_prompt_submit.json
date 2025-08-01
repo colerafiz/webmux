@@ -68,5 +68,47 @@
     "cwd": "/home/cyrus/git/swve/webmux-dev",
     "hook_event_name": "UserPromptSubmit",
     "prompt": "can you commit and push to dev branch"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "can we create an issue for making a git issue/linear tracking part of the appication. We have a CLI tools for both."
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Can we double check the audio streaming.. I am not hearing any sounds from my browser that would normally be coming from the computer's audio :( "
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "It worked a little bit longer and than broke... Can we please really think about how we implemented that and try to fix it. We've done a lot of changes lately might be easier to just restart some things I am not sure over my head in these issues and really need you to pull through claude, job is on the line.."
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Can we double check the audio on the client side, I am see no activity from browser that it is trying to play any sounds on this page. "
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Still not hearing or see any sort of audio.. "
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "It only plays audio with claude code agents complete task, it has some hook configs setup. but other than that it should be pretty silent no other audio"
   }
 ]
