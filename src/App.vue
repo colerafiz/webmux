@@ -60,10 +60,10 @@
         :currentSession="currentSession"
         :isCollapsed="sidebarCollapsed && !isMobile"
         :isMobile="isMobile"
+        :isLoading="isLoading"
         @select="selectSession"
         @refresh="refetch"
         @create="handleCreateSession"
-        @kill="handleKillSession"
         @rename="handleRenameSession"
         @select-window="handleSelectWindow"
         @toggle-sidebar="toggleSidebar"
@@ -192,45 +192,41 @@ const formatUptime = (seconds: number): string => {
   return `${minutes}m`
 }
 
-const { data: sessions = [], refetch } = useQuery({
+const { data: sessions = [], refetch, isLoading } = useQuery({
   queryKey: ['sessions'],
-  queryFn: tmuxApi.getSessions,
+  queryFn: async () => {
+    console.log('Fetching sessions...')
+    const result = await tmuxApi.getSessions()
+    console.log('Sessions fetched:', result)
+    return result
+  },
   refetchInterval: 5000,
-  initialData: [] as TmuxSession[]
+  staleTime: 0, // Always fetch fresh data
+  cacheTime: 0 // Don't cache to ensure fresh data
 })
 
 
 const handleCreateSession = async (sessionName: string): Promise<void> => {
   try {
-    console.log('handleCreateSession called with:', sessionName)
-    console.log('Creating session with name:', sessionName)
     const result = await tmuxApi.createSession(sessionName)
-    console.log('Create session result:', result)
     
-    // Invalidate and wait for the sessions to be refetched
-    await queryClient.invalidateQueries({ queryKey: ['sessions'] })
-    await refetch()
-    
-    // Add a small delay to ensure the session is fully created in tmux
-    await new Promise(resolve => setTimeout(resolve, 200))
-    
-    // Auto-select the new session after ensuring data is refreshed
     if (result.success && result.sessionName) {
+      // Immediately refetch the sessions
+      await refetch()
+      
+      // Select the new session
       currentSession.value = result.sessionName
+      
       // On mobile, close sidebar after selecting
       if (isMobile.value) {
         sidebarCollapsed.value = true
       }
     }
   } catch (error: any) {
-    console.error('Failed to create session - Full error:', error)
-    console.error('Error message:', error?.message)
-    console.error('Error stack:', error?.stack)
+    console.error('Failed to create session:', error)
     
     let errorMessage = 'Failed to create session.'
-    if (error?.response?.status === 404) {
-      errorMessage += ' Server not reachable.'
-    } else if (error?.response?.data?.error) {
+    if (error?.response?.data?.error) {
       errorMessage = error.response.data.error
     } else if (error?.message) {
       errorMessage += ' ' + error.message
@@ -243,10 +239,14 @@ const handleCreateSession = async (sessionName: string): Promise<void> => {
 const handleKillSession = async (sessionName: string): Promise<void> => {
   try {
     await tmuxApi.killSession(sessionName)
+    
+    // Clear current session if it's the one being killed
     if (currentSession.value === sessionName) {
       currentSession.value = null
     }
-    queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    
+    // Immediately refetch sessions
+    await refetch()
   } catch (error) {
     console.error('Failed to kill session:', error)
   }
@@ -255,10 +255,14 @@ const handleKillSession = async (sessionName: string): Promise<void> => {
 const handleRenameSession = async (sessionName: string, newName: string): Promise<void> => {
   try {
     await tmuxApi.renameSession(sessionName, newName)
+    
+    // Update current session if it's the one being renamed
     if (currentSession.value === sessionName) {
       currentSession.value = newName
     }
-    queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    
+    // Immediately refetch sessions
+    await refetch()
   } catch (error) {
     console.error('Failed to rename session:', error)
     alert('Failed to rename session. The name may already be in use.')

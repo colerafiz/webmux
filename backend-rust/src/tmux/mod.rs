@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use std::process::Stdio;
 use tokio::process::Command;
-use tracing::debug;
+use tracing::{debug, error, info};
 
 use crate::types::{TmuxSession, TmuxWindow};
 
@@ -86,7 +86,8 @@ pub async fn list_sessions() -> Result<Vec<TmuxSession>> {
 
 pub async fn create_session(name: &str) -> Result<()> {
     ensure_tmux_server().await?;
-
+    
+    info!("Executing tmux new-session for: {}", name);
     let status = Command::new("tmux")
         .args(&["new-session", "-d", "-s", name])
         .env("HOME", std::env::var("HOME").unwrap_or_else(|_| "/".to_string()))
@@ -94,22 +95,27 @@ pub async fn create_session(name: &str) -> Result<()> {
         .await?;
 
     if !status.success() {
+        error!("tmux new-session failed for: {}", name);
         anyhow::bail!("Failed to create session");
     }
 
+    info!("tmux new-session succeeded for: {}", name);
     Ok(())
 }
 
 pub async fn kill_session(name: &str) -> Result<()> {
+    info!("Executing tmux kill-session for: {}", name);
     let status = Command::new("tmux")
         .args(&["kill-session", "-t", name])
         .status()
         .await?;
 
     if !status.success() {
+        error!("tmux kill-session failed for: {}", name);
         anyhow::bail!("Failed to kill session");
     }
 
+    info!("tmux kill-session succeeded for: {}", name);
     Ok(())
 }
 

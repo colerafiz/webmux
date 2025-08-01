@@ -18,6 +18,7 @@ use tower_http::{
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod error;
 mod handlers;
 mod tmux;
 mod types;

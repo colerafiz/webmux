@@ -84,24 +84,21 @@ export interface TerminalSize {
 
 // System stats
 export interface SystemStats {
-  activeSessions: number;
-  totalSessions: number;
-  uptime: number;
-  memoryUsage: number;
   hostname: string;
   platform: string;
   arch: string;
+  uptime: number;
   cpu: {
     model: string;
     cores: number;
     usage: number;
-    loadAvg?: number[];
+    loadAvg: number[];
   };
   memory: {
     total: number;
     used: number;
     free: number;
-    percent?: number;
+    percent: string;
   };
 }
 

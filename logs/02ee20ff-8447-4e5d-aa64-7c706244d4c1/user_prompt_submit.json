@@ -117,5 +117,61 @@
     "cwd": "/home/cyrus/git/swve/webmux-dev",
     "hook_event_name": "UserPromptSubmit",
     "prompt": "check our client/browser, normally browsers will show a speaker to indicate sound coming from a tab.. We are not doing any of that. I think our issue is with our vue setup maybe and how we are steaming/trying to play it."
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "The browser is still not indicating any sound coming from the tab.. Not hearing anything either.."
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "THe test button worked"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Only the test button works I do not hear anything that would be playing from the server/computer though through this browser I am using to test it.."
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "for some reason everytime I create new sessions right now I am seeing like a ssh thing on the starship config for the computer showing the user name and computer name ?"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "The button to close/exit a session does not work/nothing happens"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "nope that still does not kill my session.."
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Revert that pls, it looks terribly UI wise. I think the issue is probably api/backend related."
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "It still doesn't work btw"
   }
 ]

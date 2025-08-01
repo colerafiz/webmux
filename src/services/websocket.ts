@@ -54,7 +54,9 @@ class WebSocketManager {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as WsMessage
+          console.log('WebSocket message received:', data.type, data.type === 'audio-stream' ? '(audio data)' : data)
           const handlers = this.messageHandlers.get(data.type) || []
+          console.log(`Handlers for ${data.type}:`, handlers.length)
           handlers.forEach(handler => handler(data))
         } catch (error) {
           console.error('Error parsing WebSocket message:', error)

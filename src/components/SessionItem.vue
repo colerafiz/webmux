@@ -77,7 +77,7 @@
             </svg>
           </button>
           <button
-            @click="$emit('kill')"
+            @click.stop="$emit('kill')"
             class="p-1 hover-bg rounded"
             style="color: var(--text-tertiary)"
             title="Kill"

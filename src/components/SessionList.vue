@@ -98,7 +98,14 @@
     </div>
 
     <div class="flex-1 overflow-y-auto">
-      <div v-if="sessions.length === 0" class="p-6 text-center">
+      <div v-if="isLoading && sessions.length === 0" class="p-6 text-center">
+        <div class="animate-pulse">
+          <div v-if="!isCollapsed" class="text-xs" style="color: var(--text-tertiary)">Loading sessions...</div>
+          <div v-else class="w-8 h-8 mx-auto rounded-full" style="background: var(--bg-tertiary)"></div>
+        </div>
+      </div>
+      
+      <div v-else-if="sessions.length === 0" class="p-6 text-center">
         <p v-if="!isCollapsed" class="text-xs" style="color: var(--text-tertiary)">No sessions</p>
         <div v-else class="text-xs" style="color: var(--text-tertiary)" title="No sessions">—</div>
       </div>
@@ -129,6 +136,7 @@
 import { ref, nextTick } from 'vue'
 import SessionItem from './SessionItem.vue'
 import AudioControl from './AudioControl.vue'
+import { tmuxApi } from '@/api/tmux'
 import type { TmuxSession, TmuxWindow } from '@/types'
 
 interface Props {
@@ -136,19 +144,20 @@ interface Props {
   currentSession: string | null
   isCollapsed: boolean
   isMobile: boolean
+  isLoading: boolean
 }
 
 withDefaults(defineProps<Props>(), {
   sessions: () => [],
   currentSession: null,
   isCollapsed: false,
-  isMobile: false
+  isMobile: false,
+  isLoading: false
 })
 
 const emit = defineEmits<{
   select: [sessionName: string]
   refresh: []
-  kill: [sessionName: string]
   rename: [sessionName: string, newName: string]
   create: [sessionName: string]
   'select-window': [sessionName: string, window: TmuxWindow]
@@ -184,9 +193,40 @@ const cancelCreate = (): void => {
   newSessionName.value = ''
 }
 
-const handleKill = (sessionName: string): void => {
-  if (confirm(`Are you sure you want to kill session "${sessionName}"?`)) {
-    emit('kill', sessionName)
+const handleKill = async (sessionName: string): Promise<void> => {
+  const session = props.sessions.find(s => s.name === sessionName)
+  if (!session) return
+  
+  const confirmMessage = session.windows === 1 
+    ? `Close session "${sessionName}"?`
+    : `Kill session "${sessionName}"?\n\nThis will close all ${session.windows} windows.`
+    
+  if (confirm(confirmMessage)) {
+    try {
+      if (session.windows === 1) {
+        // If only one window, kill the window instead (which kills the session)
+        console.log('Killing window 0 in session:', sessionName)
+        await tmuxApi.killWindow(sessionName, 0)
+      } else {
+        // Multiple windows, kill the entire session
+        console.log('Killing session:', sessionName)
+        await tmuxApi.killSession(sessionName)
+      }
+      
+      // Wait a moment for tmux to process
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // If we killed the current session, clear it
+      if (props.currentSession === sessionName) {
+        emit('select', '')
+      }
+      
+      // Force refresh the sessions list
+      emit('refresh')
+    } catch (error: any) {
+      console.error('Failed to kill session:', error)
+      alert(`Failed to kill session: ${error.response?.data?.error || error.message}`)
+    }
   }
 }
 </script>

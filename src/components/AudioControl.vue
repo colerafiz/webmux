@@ -30,23 +30,7 @@
           </span>
         </button>
         
-        <!-- Mute toggle button (only shown when streaming) -->
-        <button
-          v-if="isStreaming"
-          @click="toggleMute"
-          class="p-1.5 hover-bg rounded transition-colors"
-          :title="isMuted ? 'Unmute' : 'Mute'"
-        >
-          <svg v-if="!isMuted" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-              d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-          </svg>
-          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-              d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-            <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" stroke-width="2"/>
-          </svg>
-        </button>
+        <!-- Mute toggle button (disabled for simple player) -->
       </div>
       
       <!-- Status indicator -->
@@ -76,7 +60,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { audioPlayer } from '@/services/audio'
+// import { audioPlayer } from '@/services/audio'
+import { simpleAudioPlayer } from '@/services/audio-simple'
 import { testAudioPlayback, testMediaSource } from '@/services/audio-test'
 
 interface Props {
@@ -87,10 +72,10 @@ withDefaults(defineProps<Props>(), {
   isCollapsed: false
 })
 
-// Use audio player state
-const isStreaming = audioPlayer.isStreaming
-const isMuted = audioPlayer.isMuted
-const error = audioPlayer.error
+// Use simple audio player for now
+const isStreaming = simpleAudioPlayer.isStreaming
+const isMuted = ref(false) // Simple player doesn't have mute
+const error = simpleAudioPlayer.error
 const isLoading = ref(false)
 
 const audioButtonTitle = computed(() => {
@@ -107,9 +92,9 @@ const toggleAudio = async () => {
   
   try {
     if (isStreaming.value) {
-      audioPlayer.stopStreaming()
+      simpleAudioPlayer.stopStreaming()
     } else {
-      await audioPlayer.startStreaming()
+      await simpleAudioPlayer.startStreaming()
     }
   } catch (err: any) {
     console.error('Audio control error:', err)
@@ -119,9 +104,9 @@ const toggleAudio = async () => {
   }
 }
 
-const toggleMute = () => {
-  audioPlayer.toggleMute()
-}
+// const toggleMute = () => {
+//   audioPlayer.toggleMute()
+// }
 
 const testAudio = () => {
   console.log('Running audio tests...')

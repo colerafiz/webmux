@@ -42,6 +42,10 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
 ### Installation
 - **Install dependencies**: `npm install`
 
+### Linting & Type Checking
+- **Lint frontend code**: `npm run lint` (runs ESLint on .js,.jsx,.ts,.tsx,.vue files)
+- **Type check frontend**: `npm run type-check` (runs vue-tsc --noEmit)
+
 ## Architecture
 
 ### Backend (Rust + Axum)
@@ -73,6 +77,7 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
 - **Backend runtime**: Rust with Axum web framework
 - **Real-time communication**: WebSocket (axum::ws)
 - **Terminal interface**: portable-pty for cross-platform pseudo-terminal support
+- **Audio streaming**: ffmpeg for system audio capture
 
 ## API Endpoints
 
@@ -125,6 +130,21 @@ The system includes several optimizations for handling large terminal outputs:
 
 ## Development Notes
 
+### Port Configuration
+During development, the application uses different ports to avoid conflicts:
+- **Frontend dev server**: Port 5174 (instead of default 5173)
+- **Backend dev server**: Port 4000 (HTTP) / 4443 (HTTPS)
+- **Production ports**: 3000 (HTTP) / 3443 (HTTPS)
+
+### WebSocket & Audio Streaming
+- **WebSocket endpoint**: `/ws` - Terminal session management
+- **Audio streaming**: The backend includes audio capture capabilities via ffmpeg
+- **Audio debug logs**: Run backend with `--audio` flag to enable audio streaming debug logs
+
+### Project Migration History
+The backend was recently migrated from TypeScript/Express to Rust/Axum for better performance and type safety. Legacy TypeScript backend commands are preserved in package.json with "old:" prefix.
+
+### Best Practices Document
 The project contains a detailed best practices document (`tmux-web-terminal-best-practices.md`) that outlines:
 - Current implementation issues with direct TMUX attachment
 - Alternative approaches using `capture-pane` and `pipe-pane`

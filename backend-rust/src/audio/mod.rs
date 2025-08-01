@@ -47,18 +47,21 @@ pub async fn start_streaming(client_tx: mpsc::UnboundedSender<ServerMessage>) ->
     Ok(())
 }
 
-pub async fn stop_streaming() -> Result<()> {
+pub async fn stop_streaming_for_client(client_tx: &mpsc::UnboundedSender<ServerMessage>) -> Result<()> {
     let mut state = AUDIO_STATE.lock().await;
     
-    state.clients.clear();
-    info!("All audio clients removed");
+    // Remove only this specific client
+    state.clients.retain(|c| !c.same_channel(client_tx));
+    info!("Audio client removed. Remaining clients: {}", state.clients.len());
     
-    if state.is_streaming {
+    // Only stop ffmpeg if no clients remain
+    if state.clients.is_empty() && state.is_streaming {
         stop_ffmpeg(&mut state).await;
     }
     
     Ok(())
 }
+
 
 
 async fn get_default_monitor_source() -> Result<String> {
@@ -133,6 +136,7 @@ async fn start_ffmpeg(state: &mut AudioState) -> Result<()> {
                 Ok(0) => break, // EOF
                 Ok(n) => {
                     let data = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buffer[..n]);
+                    info!("Sending audio chunk: {} bytes (base64: {} chars)", n, data.len());
                     let msg = ServerMessage::AudioStream { data };
                     broadcast_to_clients(&clients_clone, &msg).await;
                 }
@@ -197,6 +201,7 @@ async fn broadcast_to_clients(
     clients: &[AudioClient],
     msg: &ServerMessage,
 ) {
+    info!("Broadcasting to {} clients", clients.len());
     for client in clients {
         let _ = client.send(msg.clone());
     }
