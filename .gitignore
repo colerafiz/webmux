@@ -56,13 +56,6 @@ Thumbs.db
 old-backend/
 *.backup
 
-# Test files
-test-*.sh
-test-*.html
-test-*.py
-test*.webm
-*.webm
-
 # Temporary TypeScript files
 *.d.ts.map
 
