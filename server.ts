@@ -136,19 +136,29 @@ app.post('/api/sessions/:name/kill', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/sessions/:name/rename', (req: Request<{ name: string }, any, RenameSessionRequest>, res: Response) => {
+app.post('/api/sessions/:name/rename', async (req: Request<{ name: string }, any, RenameSessionRequest>, res: Response) => {
   const { name } = req.params;
   const { newName } = req.body;
   
-  const renameCmd = spawn('tmux', ['rename-session', '-t', name, newName]);
-
-  renameCmd.on('close', (code) => {
-    if (code === 0) {
-      res.json({ success: true });
-    } else {
-      res.status(400).json({ success: false, error: 'Failed to rename session' });
-    }
-  });
+  // Validate input
+  if (!newName || newName.trim() === '') {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Session name cannot be empty' 
+    });
+  }
+  
+  try {
+    // Use execAsync with proper escaping
+    await execAsync(`tmux rename-session -t '${name.replace(/'/g, "'\\''")}' '${newName.replace(/'/g, "'\\''")}'`);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to rename session:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message || 'Failed to rename session' 
+    });
+  }
 });
 
 app.post('/api/sessions', async (req: Request<any, any, CreateSessionRequest>, res: Response) => {
@@ -248,19 +258,30 @@ app.delete('/api/sessions/:sessionName/windows/:windowIndex', (req: Request, res
   });
 });
 
-app.post('/api/sessions/:sessionName/windows/:windowIndex/rename', (req: Request<{ sessionName: string, windowIndex: string }, any, RenameWindowRequest>, res: Response) => {
+app.post('/api/sessions/:sessionName/windows/:windowIndex/rename', async (req: Request<{ sessionName: string, windowIndex: string }, any, RenameWindowRequest>, res: Response) => {
   const { sessionName, windowIndex } = req.params;
   const { newName } = req.body;
   
-  const renameCmd = spawn('tmux', ['rename-window', '-t', `${sessionName}:${windowIndex}`, newName]);
-
-  renameCmd.on('close', (code) => {
-    if (code === 0) {
-      res.json({ success: true });
-    } else {
-      res.status(400).json({ success: false, error: 'Failed to rename window' });
-    }
-  });
+  // Validate input
+  if (!newName || newName.trim() === '') {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Window name cannot be empty' 
+    });
+  }
+  
+  try {
+    // Use execAsync with proper escaping
+    const target = `${sessionName}:${windowIndex}`;
+    await execAsync(`tmux rename-window -t '${target}' '${newName.replace(/'/g, "'\\''")}'`);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to rename window:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message || 'Failed to rename window' 
+    });
+  }
 });
 
 app.post('/api/sessions/:sessionName/windows/:windowIndex/select', (req: Request, res: Response) => {
