@@ -8,18 +8,28 @@ class AudioPlayer {
   private audioElement: HTMLAudioElement | null = null
   private queue: Uint8Array[] = []
   private isAppending = false
+  private handlersSetup = false
   
   public isStreaming = ref(false)
   public isMuted = ref(false)
   public error = ref<string | null>(null)
   
   constructor() {
-    this.setupWebSocketHandlers()
+    // Don't set up handlers in constructor - wait for WebSocket to be ready
+    console.log('AudioPlayer initialized')
   }
   
   private setupWebSocketHandlers(): void {
+    if (this.handlersSetup) {
+      console.log('WebSocket handlers already set up')
+      return
+    }
+    
+    console.log('Setting up WebSocket handlers for audio')
+    
     // Handle audio stream data
     wsManager.onMessage<AudioStreamMessage>('audio-stream', (message) => {
+      console.log('Received audio-stream message')
       if (message.data) {
         this.handleAudioData(message.data)
       }
@@ -27,6 +37,7 @@ class AudioPlayer {
     
     // Handle audio status updates
     wsManager.onMessage<AudioStatusMessage>('audio-status', (message) => {
+      console.log('Received audio-status message:', message)
       this.isStreaming.value = message.streaming
       if (message.error) {
         this.error.value = message.error
@@ -37,12 +48,17 @@ class AudioPlayer {
         this.cleanup()
       }
     })
+    
+    this.handlersSetup = true
   }
   
   async startStreaming(): Promise<void> {
     try {
       this.error.value = null
       console.log('Starting audio streaming...')
+      
+      // Ensure WebSocket handlers are set up
+      this.setupWebSocketHandlers()
       
       // Create audio element
       this.audioElement = new Audio()

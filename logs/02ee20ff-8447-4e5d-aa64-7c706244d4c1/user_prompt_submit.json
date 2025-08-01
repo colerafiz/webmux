@@ -110,5 +110,12 @@
     "cwd": "/home/cyrus/git/swve/webmux-dev",
     "hook_event_name": "UserPromptSubmit",
     "prompt": "It only plays audio with claude code agents complete task, it has some hook configs setup. but other than that it should be pretty silent no other audio"
+  },
+  {
+    "session_id": "02ee20ff-8447-4e5d-aa64-7c706244d4c1",
+    "transcript_path": "/home/cyrus/.claude/projects/-home-cyrus-git-swve-webmux/02ee20ff-8447-4e5d-aa64-7c706244d4c1.jsonl",
+    "cwd": "/home/cyrus/git/swve/webmux-dev",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "check our client/browser, normally browsers will show a speaker to indicate sound coming from a tab.. We are not doing any of that. I think our issue is with our vue setup maybe and how we are steaming/trying to play it."
   }
 ]

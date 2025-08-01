@@ -54,6 +54,17 @@
         <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
         <span class="text-xs" style="color: var(--text-tertiary)">Live</span>
       </div>
+      
+      <!-- Test button for debugging -->
+      <button
+        v-if="!isCollapsed"
+        @click="testAudio"
+        class="p-1 hover-bg rounded text-xs"
+        style="color: var(--text-tertiary)"
+        title="Test Audio"
+      >
+        Test
+      </button>
     </div>
     
     <!-- Error message -->
@@ -66,6 +77,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { audioPlayer } from '@/services/audio'
+import { testAudioPlayback, testMediaSource } from '@/services/audio-test'
 
 interface Props {
   isCollapsed: boolean
@@ -109,6 +121,14 @@ const toggleAudio = async () => {
 
 const toggleMute = () => {
   audioPlayer.toggleMute()
+}
+
+const testAudio = () => {
+  console.log('Running audio tests...')
+  testAudioPlayback()
+  setTimeout(() => {
+    testMediaSource()
+  }, 2000)
 }
 </script>
 
