@@ -54,3 +54,78 @@ Thumbs.db
 
 # Old/backup code
 old-backend/
+*.backup
+
+# Test files
+test-*.sh
+test-*.html
+test-*.py
+test*.webm
+*.webm
+
+# Temporary TypeScript files
+*.d.ts.map
+
+# Backend specific logs
+backend-rust/*.log
+backend-rust/logs/
+
+# Claude Code logs (nested logs folders)
+**/logs/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Cargo lock file (optional - some projects track it)
+# Cargo.lock
+
+# Rust debug symbols
+*.dSYM/
+
+# macOS specific
+.AppleDouble
+.LSOverride
+Icon
+
+# Windows specific
+desktop.ini
+
+# Linux specific
+*~
+
+# VS Code workspace
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+Session.vim
+.netrwhist
+tags
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
