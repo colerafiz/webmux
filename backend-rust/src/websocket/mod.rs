@@ -32,6 +32,7 @@ struct PtySession {
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
     master: Arc<Mutex<Box<dyn portable_pty::MasterPty + Send>>>,
     reader_task: JoinHandle<()>,
+    child: Arc<Mutex<Box<dyn portable_pty::Child + Send>>>,
 }
 
 struct WsState {
@@ -203,35 +204,23 @@ async fn attach_to_session(
     cols: u16,
     rows: u16,
 ) -> anyhow::Result<()> {
-    // Check if we already have a PTY for this session
-    let sessions = state.pty_sessions.read().await;
-    if let Some(session) = sessions.get(&state.session_id) {
-        // Reuse existing PTY - just switch tmux session
-        let mut writer = session.writer.lock().await;
-        writer.write_all(b"\x03")?; // Ctrl-C
-        writer.flush()?;
-        drop(writer);
-        drop(sessions);
-        
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-        
-        let sessions = state.pty_sessions.read().await;
-        if let Some(session) = sessions.get(&state.session_id) {
-            let mut writer = session.writer.lock().await;
-            let cmd = format!("tmux switch-client -t '{}' 2>/dev/null || tmux attach-session -t '{}'\r", session_name, session_name);
-            writer.write_all(cmd.as_bytes())?;
-            writer.flush()?;
+    // Clean up any existing PTY session first
+    let mut sessions = state.pty_sessions.write().await;
+    if let Some(old_session) = sessions.remove(&state.session_id) {
+        // Kill the child process
+        {
+            let mut child = old_session.child.lock().await;
+            let _ = child.kill();
+            let _ = child.wait();
         }
-        drop(sessions);
-        
-        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-        let response = ServerMessage::Attached {
-            session_name: session_name.to_string(),
-        };
-        tx.send(response)?;
-        return Ok(());
+        // Abort the reader task
+        old_session.reader_task.abort();
+        debug!("Cleaned up previous PTY session");
     }
     drop(sessions);
+    
+    // Small delay to ensure cleanup is complete
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     
     // Create new PTY session
     debug!("Creating new PTY session for: {}", session_name);
@@ -258,7 +247,8 @@ async fn attach_to_session(
     let writer = pair.master.take_writer()?;
     let writer = Arc::new(Mutex::new(writer));
     
-    let mut _child = pair.slave.spawn_command(cmd)?;
+    let child = pair.slave.spawn_command(cmd)?;
+    let child: Arc<Mutex<Box<dyn portable_pty::Child + Send>>> = Arc::new(Mutex::new(child));
     
     // Attach to tmux session
     {
@@ -316,6 +306,7 @@ async fn attach_to_session(
         writer: writer.clone(),
         master: Arc::new(Mutex::new(pair.master)),
         reader_task,
+        child,
     };
     
     let mut sessions = state.pty_sessions.write().await;
@@ -334,8 +325,17 @@ async fn attach_to_session(
 async fn cleanup_session(state: &WsState) {
     let mut sessions = state.pty_sessions.write().await;
     if let Some(session) = sessions.remove(&state.session_id) {
+        // Kill the child process first
+        {
+            let mut child = session.child.lock().await;
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        
+        // Then abort the reader task
         session.reader_task.abort();
-        // Writer and pty_pair will be dropped automatically
+        
+        // Writer and master will be dropped automatically
     }
     
     if state.audio_tx.is_some() {

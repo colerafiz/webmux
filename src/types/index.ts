@@ -125,7 +125,7 @@ export interface AudioControlMessage extends WsMessage {
 
 export interface AudioStreamMessage extends WsMessage {
   type: 'audio-stream';
-  data: ArrayBuffer;
+  data: string; // base64 encoded audio data
 }
 
 export interface AudioStatusMessage extends WsMessage {
