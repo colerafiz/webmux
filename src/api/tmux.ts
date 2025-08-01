@@ -8,6 +8,7 @@ import type {
   WindowCreateResponse 
 } from '@/types'
 
+// Always use relative path - let Vite proxy handle everything
 const API_BASE = '/api'
 
 export const tmuxApi = {
@@ -17,8 +18,27 @@ export const tmuxApi = {
   },
 
   async createSession(name: string): Promise<SessionCreateResponse> {
-    const { data } = await axios.post<SessionCreateResponse>(`${API_BASE}/sessions`, { name })
-    return data
+    try {
+      console.log('Current location:', window.location.href)
+      console.log('API_BASE:', API_BASE)
+      const fullUrl = `${window.location.origin}${API_BASE}/sessions`
+      console.log('Full URL will be:', fullUrl)
+      console.log('Making POST request to:', `${API_BASE}/sessions`, 'with data:', { name })
+      
+      const response = await axios.post<SessionCreateResponse>(`${API_BASE}/sessions`, { name })
+      console.log('Response received:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('API request failed:', error)
+      if (axios.isAxiosError(error)) {
+        console.error('Response status:', error.response?.status)
+        console.error('Response data:', error.response?.data)
+        console.error('Request URL:', error.config?.url)
+        console.error('Request baseURL:', error.config?.baseURL)
+        console.error('Full failed URL:', error.config?.baseURL ? error.config.baseURL + error.config.url : error.config?.url)
+      }
+      throw error
+    }
   },
 
   async killSession(sessionName: string): Promise<SessionActionResponse> {

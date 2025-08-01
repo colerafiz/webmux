@@ -28,17 +28,26 @@ const port = 3000;
 const httpsPort = 3443;
 
 // HTTPS configuration
-// When running from dist/, certs will be in the parent directory
-const certsDir = process.env.NODE_ENV === 'development' 
-  ? path.join(__dirname, 'certs')
-  : path.join(__dirname, '..', 'certs');
+// Fix path resolution for ts-node vs compiled
+const rootDir = path.resolve(__dirname.includes('node_modules') ? process.cwd() : __dirname);
+const certsDir = path.join(rootDir, 'certs');
 
-const httpsOptions: https.ServerOptions = {
-  key: fs.readFileSync(path.join(certsDir, 'key.pem')),
-  cert: fs.readFileSync(path.join(certsDir, 'cert.pem'))
-};
+let httpsOptions: https.ServerOptions | undefined;
+try {
+  httpsOptions = {
+    key: fs.readFileSync(path.join(certsDir, 'key.pem')),
+    cert: fs.readFileSync(path.join(certsDir, 'cert.pem'))
+  };
+} catch (error) {
+  console.error('Warning: Could not load SSL certificates from', certsDir);
+  console.error('HTTPS server will not be available');
+}
 
-app.use(cors());
+// Configure CORS to accept requests from any origin
+app.use(cors({
+  origin: true, // Accept requests from any origin
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -208,7 +217,8 @@ app.post('/api/sessions/:name/windows', (req: Request<{ name: string }, any, Cre
   const { name } = req.params;
   const { windowName } = req.body;
   
-  const args = ['new-window', '-t', name];
+  // Use -a flag to append window at the end (next available index)
+  const args = ['new-window', '-a', '-t', name];
   if (windowName) {
     args.push('-n', windowName);
   }
@@ -273,19 +283,22 @@ const server: Server = app.listen(port, '0.0.0.0', () => {
   console.log(`  Network:  http://0.0.0.0:${port}`);
 });
 
-// Start HTTPS server
-const httpsServer = https.createServer(httpsOptions, app);
-httpsServer.listen(httpsPort, '0.0.0.0', () => {
-  console.log(`WebMux HTTPS server running on port ${httpsPort}`);
-  console.log(`  Local:    https://localhost:${httpsPort}`);
-  console.log(`  Network:  https://0.0.0.0:${httpsPort}`);
-  console.log(`  Tailscale: Use your Tailscale IP with port ${httpsPort}`);
-  console.log(`  Note: You may need to accept the self-signed certificate`);
-});
+// Start HTTPS server (only if certificates are available)
+let httpsServer: https.Server | undefined;
+if (httpsOptions) {
+  httpsServer = https.createServer(httpsOptions, app);
+  httpsServer.listen(httpsPort, '0.0.0.0', () => {
+    console.log(`WebMux HTTPS server running on port ${httpsPort}`);
+    console.log(`  Local:    https://localhost:${httpsPort}`);
+    console.log(`  Network:  https://0.0.0.0:${httpsPort}`);
+    console.log(`  Tailscale: Use your Tailscale IP with port ${httpsPort}`);
+    console.log(`  Note: You may need to accept the self-signed certificate`);
+  });
+}
 
 // WebSocket servers for both HTTP and HTTPS
 const wss = new WebSocket.Server({ server, path: '/ws' });
-const wssHttps = new WebSocket.Server({ server: httpsServer, path: '/ws' });
+const wssHttps = httpsServer ? new WebSocket.Server({ server: httpsServer, path: '/ws' }) : null;
 
 // Session management
 const sessions = new Map<WebSocket, IPty>();
@@ -357,7 +370,9 @@ function handleWebSocketConnection(ws: WebSocket): void {
 
 // Attach WebSocket handlers to both servers
 wss.on('connection', handleWebSocketConnection);
-wssHttps.on('connection', handleWebSocketConnection);
+if (wssHttps) {
+  wssHttps.on('connection', handleWebSocketConnection);
+}
 
 async function listTmuxSessions(ws: WebSocket): Promise<void> {
   // First check if tmux server is running

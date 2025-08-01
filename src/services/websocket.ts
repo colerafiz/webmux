@@ -35,6 +35,8 @@ class WebSocketManager {
         // Production mode - use same host and port as current page
         wsUrl = `${protocol}//${window.location.host}/ws`
       }
+      
+      console.log('Connecting to WebSocket:', wsUrl)
       this.ws = new WebSocket(wsUrl)
       
       this.ws.onopen = () => {

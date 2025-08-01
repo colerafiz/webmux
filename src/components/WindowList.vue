@@ -1,5 +1,62 @@
 <template>
   <div class="pl-6 mt-1">
+    <!-- Modal for window name input -->
+    <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cancelCreateWindow">
+      <div class="p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" style="background: var(--bg-secondary); border: 1px solid var(--border-primary)">
+        <h3 class="text-lg font-semibold mb-4" style="color: var(--text-primary)">Create New Window</h3>
+        <input 
+          v-model="newWindowName"
+          type="text" 
+          placeholder="Window name (optional)"
+          class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
+          @keyup.enter="confirmCreateWindow"
+          ref="windowNameInput"
+        />
+        <div class="flex justify-end space-x-2 mt-4">
+          <button 
+            @click="cancelCreateWindow"
+            class="px-4 py-2 text-sm border rounded"
+            style="background: var(--bg-secondary); border-color: var(--border-primary); color: var(--text-secondary)"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="confirmCreateWindow"
+            class="px-4 py-2 text-sm border rounded"
+            style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal for delete confirmation -->
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cancelDelete">
+      <div class="p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" style="background: var(--bg-secondary); border: 1px solid var(--border-primary)">
+        <h3 class="text-lg font-semibold mb-4" style="color: var(--text-primary)">Delete Window</h3>
+        <p class="mb-4" style="color: var(--text-secondary)">
+          Are you sure you want to kill window "{{ windowToDelete?.name }}"?
+        </p>
+        <div class="flex justify-end space-x-2">
+          <button 
+            @click="cancelDelete"
+            class="px-4 py-2 text-sm border rounded"
+            style="background: var(--bg-secondary); border-color: var(--border-primary); color: var(--text-secondary)"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="confirmDelete"
+            class="px-4 py-2 text-sm border rounded"
+            style="background: #f85149; border-color: #f85149; color: white"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
     <div v-if="loading" class="text-xs" style="color: var(--text-tertiary)">
       Loading windows...
     </div>
@@ -100,6 +157,15 @@ const editingWindow = ref<TmuxWindow | null>(null)
 const editingName = ref<string>('')
 const editInput = ref<HTMLInputElement | null>(null)
 
+// Modal state for new window
+const showCreateModal = ref(false)
+const newWindowName = ref('')
+const windowNameInput = ref<HTMLInputElement>()
+
+// Modal state for delete confirmation
+const showDeleteModal = ref(false)
+const windowToDelete = ref<TmuxWindow | null>(null)
+
 const loadWindows = async (): Promise<void> => {
   try {
     loading.value = true
@@ -113,29 +179,55 @@ const loadWindows = async (): Promise<void> => {
   }
 }
 
-const createWindow = async (): Promise<void> => {
-  const name = prompt('Window name (optional):')
-  if (name !== null) {
-    try {
-      await tmuxApi.createWindow(props.sessionName, name || undefined)
-      await loadWindows()
-      emit('refresh')
-    } catch (err) {
-      console.error('Failed to create window:', err)
-    }
+const createWindow = (): void => {
+  showCreateModal.value = true
+  newWindowName.value = ''
+  nextTick(() => {
+    windowNameInput.value?.focus()
+  })
+}
+
+const confirmCreateWindow = async (): Promise<void> => {
+  try {
+    await tmuxApi.createWindow(props.sessionName, newWindowName.value || undefined)
+    await loadWindows()
+    emit('refresh')
+    showCreateModal.value = false
+    newWindowName.value = ''
+  } catch (err) {
+    console.error('Failed to create window:', err)
+    alert('Failed to create window. Please try again.')
   }
 }
 
-const killWindow = async (window: TmuxWindow): Promise<void> => {
-  if (confirm(`Kill window "${window.name}"?`)) {
-    try {
-      await tmuxApi.killWindow(props.sessionName, window.index)
-      await loadWindows()
-      emit('refresh')
-    } catch (err) {
-      console.error('Failed to kill window:', err)
-    }
+const cancelCreateWindow = (): void => {
+  showCreateModal.value = false
+  newWindowName.value = ''
+}
+
+const killWindow = (window: TmuxWindow): void => {
+  windowToDelete.value = window
+  showDeleteModal.value = true
+}
+
+const confirmDelete = async (): Promise<void> => {
+  if (!windowToDelete.value) return
+  
+  try {
+    await tmuxApi.killWindow(props.sessionName, windowToDelete.value.index)
+    await loadWindows()
+    emit('refresh')
+    showDeleteModal.value = false
+    windowToDelete.value = null
+  } catch (err) {
+    console.error('Failed to kill window:', err)
+    alert('Failed to delete window. Please try again.')
   }
+}
+
+const cancelDelete = (): void => {
+  showDeleteModal.value = false
+  windowToDelete.value = null
 }
 
 const isEditing = (window: TmuxWindow): boolean => {
@@ -169,6 +261,12 @@ const cancelEdit = (): void => {
 }
 
 onMounted(() => {
+  // Ensure modals are closed on mount
+  showCreateModal.value = false
+  showDeleteModal.value = false
+  windowToDelete.value = null
+  newWindowName.value = ''
+  
   loadWindows()
 })
 

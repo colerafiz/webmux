@@ -202,15 +202,36 @@ const { data: sessions = [], refetch } = useQuery({
 
 const handleCreateSession = async (sessionName: string): Promise<void> => {
   try {
+    console.log('handleCreateSession called with:', sessionName)
+    console.log('Creating session with name:', sessionName)
     const result = await tmuxApi.createSession(sessionName)
-    queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    console.log('Create session result:', result)
+    
+    await queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    
     // Auto-select the new session immediately
-    if (result && typeof result === 'object' && 'sessionName' in result && typeof result.sessionName === 'string') {
+    if (result.success && result.sessionName) {
       currentSession.value = result.sessionName
+      // On mobile, close sidebar after selecting
+      if (isMobile.value) {
+        sidebarCollapsed.value = true
+      }
     }
-  } catch (error) {
-    console.error('Failed to create session:', error)
-    alert('Failed to create session. It may already exist.')
+  } catch (error: any) {
+    console.error('Failed to create session - Full error:', error)
+    console.error('Error message:', error?.message)
+    console.error('Error stack:', error?.stack)
+    
+    let errorMessage = 'Failed to create session.'
+    if (error?.response?.status === 404) {
+      errorMessage += ' Server not reachable.'
+    } else if (error?.response?.data?.error) {
+      errorMessage = error.response.data.error
+    } else if (error?.message) {
+      errorMessage += ' ' + error.message
+    }
+    
+    alert(errorMessage)
   }
 }
 

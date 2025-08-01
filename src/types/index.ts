@@ -118,9 +118,20 @@ export interface WindowSelectedMessage extends WsMessage {
 }
 
 // API-specific response types
-export interface SessionCreateResponse extends ApiResponse<TmuxSession & { sessionName?: string }> {}
-export interface SessionActionResponse extends ApiResponse<{ message: string }> {}
+export interface SessionCreateResponse {
+  success: boolean;
+  sessionName: string;
+  error?: string;
+}
+export interface SessionActionResponse {
+  success: boolean;
+  error?: string;
+}
 export interface WindowsListResponse {
   windows: TmuxWindow[];
 }
-export interface WindowCreateResponse extends ApiResponse<TmuxWindow> {}
+export interface WindowCreateResponse {
+  success: boolean;
+  window?: TmuxWindow;
+  error?: string;
+}
