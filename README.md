@@ -1,6 +1,6 @@
 # WebMux
 
-Web-based TMUX session viewer that allows users to interact with TMUX sessions through a browser interface. Now with PWA support for mobile devices!
+A high-performance web-based TMUX session viewer built with Rust and Vue.js. Access and control your TMUX sessions through a browser interface with full PWA support for mobile devices!
 
 ## Features
 
@@ -8,18 +8,23 @@ Web-based TMUX session viewer that allows users to interact with TMUX sessions t
 - **TMUX Session Management**: Create, attach, rename, and kill TMUX sessions
 - **Window Management**: Create, switch, rename, and kill windows within sessions
 - **Real-time Updates**: WebSocket-based communication for live terminal output
+- **Audio Streaming**: System audio capture and streaming (experimental)
 - **Responsive UI**: Clean, modern interface built with Vue 3 and Tailwind CSS
 - **Performance Optimized**: Handles large outputs with buffering and flow control
 - **PWA Support**: Install to home screen on mobile devices
 - **HTTPS Enabled**: Secure connections with self-signed certificates
 - **Mobile Optimized**: Touch-friendly interface with iOS safe area support
 - **Network Accessible**: Access via Tailscale or local network IPs
+- **Rust Backend**: High-performance server built with Axum web framework
 
 ## Prerequisites
 
 - Node.js (v14 or higher)
 - npm or yarn
+- Rust (latest stable version) - Install from [rustup.rs](https://rustup.rs/)
+- cargo-watch (optional, for development) - Install with `cargo install cargo-watch`
 - TMUX installed on your system
+- ffmpeg (optional, for audio streaming)
 - Modern web browser
 
 ## Installation
@@ -39,7 +44,7 @@ npm install
 
 ### Development
 
-Run both the backend server and frontend client in development mode:
+Run both the Rust backend server and Vue frontend client in development mode:
 ```bash
 # HTTP mode
 npm run dev
@@ -49,8 +54,9 @@ npm run dev:https
 ```
 
 This will start:
-- Backend server on `http://localhost:3000` (HTTP) or `https://localhost:3443` (HTTPS)
-- Frontend client on `http://localhost:5173` (HTTP) or `https://localhost:5173` (HTTPS)
+- Rust backend server on `http://localhost:4000` (HTTP) or `https://localhost:4443` (HTTPS) in development
+- Frontend client on `http://localhost:5174` in development
+- In production mode, servers run on ports 3000/3443 (backend) and 5173 (frontend)
 
 ### HTTPS Setup
 
@@ -80,10 +86,14 @@ npm run setup-certs
 
 ### Production
 
-Build the frontend for production:
+Build both backend and frontend for production:
 ```bash
 npm run build
 ```
+
+This will:
+- Build the Rust backend with optimizations (`cargo build --release`)
+- Build the Vue frontend for production
 
 Preview the production build:
 ```bash
@@ -92,9 +102,11 @@ npm run preview
 
 ### Individual Components
 
-Run only the backend server:
+Run only the Rust backend server:
 ```bash
-npm run server
+npm run rust:dev  # With auto-restart on changes
+# or
+cd backend-rust && cargo run
 ```
 
 Run only the frontend client:
@@ -102,16 +114,36 @@ Run only the frontend client:
 npm run client
 ```
 
+### Testing
+
+Run Rust backend tests:
+```bash
+npm run rust:test
+```
+
+Type-check frontend:
+```bash
+npm run type-check
+```
+
+Lint frontend code:
+```bash
+npm run lint
+```
+
 ## Architecture
 
-### Backend
-- **Express.js** server with WebSocket support
-- **node-pty** for pseudo-terminal creation and TMUX attachment
-- **ws** library for WebSocket communication
+### Backend (Rust)
+- **Axum** web framework for high-performance async HTTP and WebSocket handling
+- **tokio** async runtime for concurrent operations
+- **portable-pty** for cross-platform pseudo-terminal creation and TMUX attachment
+- **tokio-tungstenite** for WebSocket communication
 - RESTful API for session and window management
+- Alternative session manager using `tmux send-keys` and `capture-pane` to avoid attachment conflicts
+- Audio streaming support via ffmpeg integration
 
-### Frontend
-- **Vue 3** with Composition API
+### Frontend (Vue.js)
+- **Vue 3** with Composition API and TypeScript
 - **Vite** for fast development and optimized builds
 - **xterm.js** for terminal emulation
 - **Tailwind CSS** for styling
@@ -167,6 +199,15 @@ Ensure you're attached to the session first before attempting to switch windows.
 ### Terminal freezes with large output
 The system includes output buffering and flow control to handle applications that produce lots of output. Check the browser console for debug logs if issues persist.
 
+### Issues with interactive applications (like Claude Code)
+If experiencing conflicts with interactive applications, the backend includes an alternative session manager that uses `tmux send-keys` and `capture-pane` commands instead of direct attachment. This can be found in `backend-rust/src/websocket/session_manager.rs`.
+
+### Enable debug logging
+Set the `RUST_LOG=debug` environment variable when running the backend for detailed logging.
+
+### Audio streaming issues
+Run the backend with the `--audio` flag to enable audio streaming debug logs. Ensure ffmpeg is installed on your system.
+
 ## Contributing
 
 1. Fork the repository
@@ -181,7 +222,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Built with [Vue.js](https://vuejs.org/)
+- Backend built with [Rust](https://www.rust-lang.org/) and [Axum](https://github.com/tokio-rs/axum)
+- Frontend built with [Vue.js](https://vuejs.org/)
 - Terminal emulation by [xterm.js](https://xtermjs.org/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
-- TMUX integration via [node-pty](https://github.com/microsoft/node-pty)
+- TMUX integration via [portable-pty](https://github.com/wez/portable-pty)
+- Real-time communication with [tokio-tungstenite](https://github.com/snapview/tokio-tungstenite)
