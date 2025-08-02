@@ -6,6 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 WebMux is a Progressive Web App (PWA) that provides a web-based TMUX session viewer, allowing users to interact with TMUX sessions through a browser interface. It consists of a Rust backend server and a Vue 3 frontend application with full mobile support and installability.
 
+## Recent Changes
+
+- Migrated from REST API to WebSocket-based architecture for all terminal operations
+- Added centered search bar for quick window navigation
+- Fixed session isolation issues with alternative session manager
+- Improved performance with output buffering and flow control
+- Added experimental audio streaming capabilities
+
 ## Common Commands
 
 ### Development
@@ -32,10 +40,11 @@ WebMux supports HTTPS with self-signed certificates:
 
 ### Network Access
 The application is configured to accept connections from any network interface:
-- **Local HTTP**: `http://localhost:5173` (frontend) / `http://localhost:3000` (backend)
-- **Local HTTPS**: `https://localhost:5173` (frontend) / `https://localhost:3443` (backend)
-- **Network access**: Use your machine's IP address (e.g., `https://192.168.1.100:5173`)
-- **Tailscale access**: Use your machine's Tailscale IP (e.g., `https://100.x.x.x:5173`)
+- **Local HTTP**: `http://localhost:5174` (dev frontend) / `http://localhost:4000` (dev backend)
+- **Local HTTPS**: `https://localhost:5174` (dev frontend) / `https://localhost:4443` (dev backend)
+- **Production ports**: 5173 (frontend) / 3000 (backend HTTP) / 3443 (backend HTTPS)
+- **Network access**: Use your machine's IP address (e.g., `https://192.168.1.100:5174`)
+- **Tailscale access**: Use your machine's Tailscale IP (e.g., `https://100.x.x.x:5174`)
 
 Both servers bind to `0.0.0.0`, which means they accept connections from all network interfaces.
 
@@ -66,7 +75,10 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
   - `SessionItem.vue` - Individual session item in the list
   - `TerminalView.vue` - Terminal emulator view using xterm.js
   - `WindowList.vue` - TMUX window management
-- **Composables**: `useWebSocket.ts` - WebSocket connection management with types
+  - `SearchBar.vue` - Quick window search and navigation
+- **Composables**: 
+  - `useWebSocket.ts` - WebSocket connection management with types
+  - `useWindowSearch.ts` - Window search functionality
 - **API**: `src/api/tmux.ts` - REST API client for TMUX operations with typed responses
 - **Type definitions**: `src/types/index.ts` - Shared TypeScript types
 
@@ -140,7 +152,7 @@ The system includes several optimizations for handling large terminal outputs:
 During development, the application uses different ports to avoid conflicts:
 - **Frontend dev server**: Port 5174 (instead of default 5173)
 - **Backend dev server**: Port 4000 (HTTP) / 4443 (HTTPS)
-- **Production ports**: 3000 (HTTP) / 3443 (HTTPS)
+- **Production ports**: 5173 (frontend) / 3000 (HTTP) / 3443 (HTTPS)
 
 ### WebSocket & Audio Streaming
 - **WebSocket endpoint**: `/ws` - Terminal session management
@@ -175,3 +187,26 @@ Key implementation considerations:
 - **Audio streaming debug**: Run backend with `--audio` flag
 - **Check WebSocket messages**: Use browser developer tools to monitor WebSocket frames
 - **TMUX session conflicts**: If experiencing issues with interactive applications (like Claude Code), consider using the alternative session manager approach
+
+### Key Files to Know
+- **WebSocket handler**: `backend-rust/src/websocket/mod.rs` - Main WebSocket logic
+- **Terminal view**: `src/components/TerminalView.vue` - Terminal UI component
+- **Window search**: `src/components/SearchBar.vue` - Quick window search feature
+- **Session types**: `src/types/index.ts` - TypeScript type definitions
+
+### Common Development Tasks
+
+**Adding a new WebSocket message type:**
+1. Add the message type to both client and server type definitions
+2. Update WebSocket handler in `backend-rust/src/websocket/mod.rs`
+3. Update client handler in `src/composables/useWebSocket.ts`
+
+**Modifying terminal behavior:**
+1. Check `src/components/TerminalView.vue` for UI changes
+2. Check `backend-rust/src/websocket/mod.rs` for server-side handling
+3. Test with both small and large outputs
+
+**Working with TMUX commands:**
+1. TMUX logic is in `backend-rust/src/tmux/mod.rs`
+2. Use `tmux list-sessions -F` for structured output
+3. Remember TMUX prefix is Ctrl-A (0x01)

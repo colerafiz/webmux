@@ -1,21 +1,22 @@
 # WebMux
 
-A high-performance web-based TMUX session viewer built with Rust and Vue.js. Access and control your TMUX sessions through a browser interface with full PWA support for mobile devices!
+A high-performance web-based TMUX session viewer built with Rust and Vue.js. Access and control your TMUX sessions through a modern browser interface with full PWA support, WebSocket-based real-time communication, and mobile optimization.
 
 ## Features
 
 - **Web-based Terminal**: Full terminal emulation in your browser using xterm.js
 - **TMUX Session Management**: Create, attach, rename, and kill TMUX sessions
 - **Window Management**: Create, switch, rename, and kill windows within sessions
-- **Real-time Updates**: WebSocket-based communication for live terminal output
+- **Real-time Communication**: WebSocket-based architecture for live terminal I/O
+- **Quick Search**: Fast window navigation with search functionality
 - **Audio Streaming**: System audio capture and streaming (experimental)
-- **Responsive UI**: Clean, modern interface built with Vue 3 and Tailwind CSS
+- **Responsive Design**: Modern interface built with Vue 3 and Tailwind CSS
 - **Performance Optimized**: Handles large outputs with buffering and flow control
-- **PWA Support**: Install to home screen on mobile devices
+- **PWA Support**: Install as a native app on mobile and desktop devices
 - **HTTPS Enabled**: Secure connections with self-signed certificates
 - **Mobile Optimized**: Touch-friendly interface with iOS safe area support
-- **Network Accessible**: Access via Tailscale or local network IPs
-- **Rust Backend**: High-performance server built with Axum web framework
+- **Network Accessible**: Access via local network or Tailscale IPs
+- **Session Isolation**: Alternative session manager to avoid attachment conflicts
 
 ## Prerequisites
 
@@ -25,7 +26,7 @@ A high-performance web-based TMUX session viewer built with Rust and Vue.js. Acc
 - cargo-watch (optional, for development) - Install with `cargo install cargo-watch`
 - TMUX installed on your system
 - ffmpeg (optional, for audio streaming)
-- Modern web browser
+- Modern web browser with WebSocket support
 
 ## Installation
 
@@ -40,23 +41,37 @@ cd webmux
 npm install
 ```
 
-## Usage
+## Quick Start
 
-### Development
+### Development Mode
 
-Run both the Rust backend server and Vue frontend client in development mode:
+Run both the Rust backend and Vue frontend in development mode:
 ```bash
-# HTTP mode
+# HTTP mode (default)
 npm run dev
 
-# HTTPS mode (required for PWA features)
+# HTTPS mode (required for PWA and mobile features)
 npm run dev:https
 ```
 
-This will start:
-- Rust backend server on `http://localhost:4000` (HTTP) or `https://localhost:4443` (HTTPS) in development
-- Frontend client on `http://localhost:5174` in development
-- In production mode, servers run on ports 3000/3443 (backend) and 5173 (frontend)
+Development servers:
+- Frontend: `http://localhost:5174` (development port)
+- Backend: `http://localhost:4000` (HTTP) or `https://localhost:4443` (HTTPS)
+
+### Production Mode
+
+Build and run for production:
+```bash
+# Build both backend and frontend
+npm run build
+
+# Preview the production build
+npm run preview
+```
+
+Production servers:
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3000` (HTTP) or `https://localhost:3443` (HTTPS)
 
 ### HTTPS Setup
 
@@ -65,89 +80,72 @@ Generate self-signed certificates for HTTPS:
 npm run setup-certs
 ```
 
-### Installing as PWA
+## Network Access
 
-#### iOS (iPhone/iPad)
+The application accepts connections from any network interface:
+- **Local access**: `http://localhost:5174` (dev) or `http://localhost:5173` (prod)
+- **Network access**: `http://[YOUR-IP]:5174` (e.g., `http://192.168.1.100:5174`)
+- **Tailscale access**: `http://[TAILSCALE-IP]:5174` (e.g., `http://100.x.x.x:5174`)
+
+## Installing as PWA
+
+### iOS (iPhone/iPad)
 1. Open Safari and navigate to the app (HTTPS required)
 2. Tap the Share button (square with arrow)
 3. Scroll down and tap "Add to Home Screen"
 4. Name the app and tap "Add"
-5. The app will now run fullscreen without browser UI
 
-#### Android
+### Android
 1. Open Chrome and navigate to the app (HTTPS required)
 2. Tap the menu (three dots)
 3. Tap "Add to Home Screen" or "Install App"
 4. Follow the prompts to install
 
-#### Desktop Chrome
+### Desktop Chrome
 1. Look for the install icon in the address bar
 2. Click "Install" when prompted
 
-### Production
+## Available Scripts
 
-Build both backend and frontend for production:
-```bash
-npm run build
-```
+### Development
+- `npm run dev` - Start both servers in development mode (HTTP)
+- `npm run dev:https` - Start both servers with HTTPS enabled
+- `npm run client` - Run only the frontend development server
+- `npm run rust:dev` - Run only the backend with auto-restart
 
-This will:
-- Build the Rust backend with optimizations (`cargo build --release`)
-- Build the Vue frontend for production
+### Building
+- `npm run build` - Build both backend and frontend for production
+- `npm run rust:build` - Build only the Rust backend
+- `npm run preview` - Preview the production build
 
-Preview the production build:
-```bash
-npm run preview
-```
+### Testing & Quality
+- `npm run rust:test` - Run Rust backend tests
+- `npm run rust:check` - Run Rust code checks
+- `npm run type-check` - Type-check frontend TypeScript
+- `npm run lint` - Lint frontend code with ESLint
 
-### Individual Components
-
-Run only the Rust backend server:
-```bash
-npm run rust:dev  # With auto-restart on changes
-# or
-cd backend-rust && cargo run
-```
-
-Run only the frontend client:
-```bash
-npm run client
-```
-
-### Testing
-
-Run Rust backend tests:
-```bash
-npm run rust:test
-```
-
-Type-check frontend:
-```bash
-npm run type-check
-```
-
-Lint frontend code:
-```bash
-npm run lint
-```
+### Utilities
+- `npm run setup-certs` - Generate self-signed SSL certificates
 
 ## Architecture
 
-### Backend (Rust)
-- **Axum** web framework for high-performance async HTTP and WebSocket handling
-- **tokio** async runtime for concurrent operations
-- **portable-pty** for cross-platform pseudo-terminal creation and TMUX attachment
-- **tokio-tungstenite** for WebSocket communication
-- RESTful API for session and window management
-- Alternative session manager using `tmux send-keys` and `capture-pane` to avoid attachment conflicts
-- Audio streaming support via ffmpeg integration
+### Backend (Rust + Axum)
+- **Web Framework**: Axum for high-performance async HTTP/WebSocket handling
+- **Async Runtime**: Tokio for concurrent operations
+- **Terminal Interface**: portable-pty for cross-platform PTY support
+- **WebSocket**: tokio-tungstenite for real-time communication
+- **Session Management**: Two approaches:
+  - Direct attachment via `tmux attach-session`
+  - Alternative manager using `send-keys` and `capture-pane` for better isolation
+- **Audio Streaming**: FFmpeg integration for system audio capture
 
-### Frontend (Vue.js)
-- **Vue 3** with Composition API and TypeScript
-- **Vite** for fast development and optimized builds
-- **xterm.js** for terminal emulation
-- **Tailwind CSS** for styling
-- **@tanstack/vue-query** for server state management
+### Frontend (Vue 3 + TypeScript)
+- **Framework**: Vue 3 with Composition API
+- **Build Tool**: Vite for fast development and optimized builds
+- **Terminal Emulator**: xterm.js with fit addon
+- **Styling**: Tailwind CSS for responsive design
+- **State Management**: @tanstack/vue-query for server state
+- **WebSocket Client**: Native WebSocket API with reconnection logic
 
 ## API Reference
 
@@ -168,45 +166,68 @@ npm run lint
 
 ### WebSocket Protocol
 
-Client to Server messages:
+Connect to `/ws` endpoint for terminal session management.
+
+**Client → Server Messages:**
 ```javascript
-{ type: 'attach-session', sessionName, cols, rows }
-{ type: 'input', data }
-{ type: 'resize', cols, rows }
-{ type: 'list-windows', sessionName }
-{ type: 'select-window', sessionName, windowIndex }
+{ type: 'attach-session', sessionName: string, cols: number, rows: number }
+{ type: 'input', data: string }
+{ type: 'resize', cols: number, rows: number }
+{ type: 'list-windows', sessionName: string }
+{ type: 'select-window', sessionName: string, windowIndex: number }
+{ type: 'start-audio' }
+{ type: 'stop-audio' }
 ```
 
-Server to Client messages:
+**Server → Client Messages:**
 ```javascript
-{ type: 'output', data }
-{ type: 'attached', sessionName }
+{ type: 'output', data: string }
+{ type: 'attached', sessionName: string }
 { type: 'disconnected' }
-{ type: 'windows-list', windows }
+{ type: 'windows-list', windows: Window[] }
+{ type: 'audio-data', data: string }  // Base64 encoded audio
+{ type: 'audio-status', streaming: boolean, error?: string }
 ```
 
 ## Troubleshooting
 
-### Keyboard input not working
-Click anywhere in the terminal area to ensure it has focus.
+### Common Issues
 
-### Session not responding
-Refresh the page and re-select the session from the list.
+**Keyboard input not working**
+- Click anywhere in the terminal area to ensure it has focus
 
-### Window switching fails
-Ensure you're attached to the session first before attempting to switch windows.
+**Session not responding**
+- Refresh the page and re-select the session from the list
 
-### Terminal freezes with large output
-The system includes output buffering and flow control to handle applications that produce lots of output. Check the browser console for debug logs if issues persist.
+**Window switching fails**
+- Ensure you're attached to the session first
 
-### Issues with interactive applications (like Claude Code)
-If experiencing conflicts with interactive applications, the backend includes an alternative session manager that uses `tmux send-keys` and `capture-pane` commands instead of direct attachment. This can be found in `backend-rust/src/websocket/session_manager.rs`.
+**Terminal freezes with large output**
+- The system includes output buffering and flow control
+- Check browser console for debug logs
 
-### Enable debug logging
-Set the `RUST_LOG=debug` environment variable when running the backend for detailed logging.
+**HTTPS certificate warnings**
+- Accept the self-signed certificate in your browser
+- For mobile devices, visit the backend URL directly first
 
-### Audio streaming issues
-Run the backend with the `--audio` flag to enable audio streaming debug logs. Ensure ffmpeg is installed on your system.
+### Debug Mode
+
+Enable detailed logging:
+```bash
+RUST_LOG=debug npm run rust:dev
+```
+
+Enable audio streaming debug:
+```bash
+cd backend-rust && cargo run -- --audio
+```
+
+## Performance Considerations
+
+- **Output Buffering**: Server buffers PTY output to prevent WebSocket overflow
+- **Flow Control**: PTY pauses when WebSocket buffer is full
+- **Client Batching**: Terminal writes are batched for smooth rendering
+- **Session Isolation**: Alternative session manager available for better multi-client support
 
 ## Contributing
 
@@ -216,15 +237,21 @@ Run the backend with the `--audio` flag to enable audio streaming debug logs. En
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## Security Notes
+
+- The application is designed for use on trusted networks
+- HTTPS is recommended for production deployments
+- Self-signed certificates are suitable for development/personal use
+- Consider proper certificate management for public deployments
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
-- Backend built with [Rust](https://www.rust-lang.org/) and [Axum](https://github.com/tokio-rs/axum)
-- Frontend built with [Vue.js](https://vuejs.org/)
 - Terminal emulation by [xterm.js](https://xtermjs.org/)
+- Backend powered by [Rust](https://www.rust-lang.org/) and [Axum](https://github.com/tokio-rs/axum)
+- Frontend built with [Vue.js](https://vuejs.org/) and [Vite](https://vitejs.dev/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
-- TMUX integration via [portable-pty](https://github.com/wez/portable-pty)
-- Real-time communication with [tokio-tungstenite](https://github.com/snapview/tokio-tungstenite)
+- Real-time communication via [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
