@@ -154,34 +154,33 @@ impl OptimizedClientManager {
     
     /// Send message to specific client with backpressure handling
     pub async fn send_to_client(&self, client_id: &str, message: OptimizedMessage) {
-        let clients = self.clients.read().await;
+        // First check if client exists and get what we need
+        let client_info = {
+            let clients = self.clients.read().await;
+            clients.get(client_id).map(|client| {
+                let available_permits = client.permits.available_permits();
+                (available_permits, client.permits.clone(), client.tx.clone())
+            })
+        };
         
-        // Clone what we need inside a scope to release the lock
-        let (permits, tx) = {
-            if let Some(client) = clients.get(client_id) {
-                // Check if we should apply backpressure
-                if client.permits.available_permits() == 0 {
-                    drop(clients);
+        match client_info {
+            Some((available_permits, permits, tx)) => {
+                if available_permits == 0 {
+                    // Client exists but backpressure triggered
                     let mut stats = self.stats.write().await;
                     stats.backpressure_events += 1;
                     warn!("Backpressure triggered for client {}", client_id);
-                    return;
+                } else {
+                    // Try to acquire permit without blocking
+                    if let Ok(_permit) = permits.try_acquire_owned() {
+                        if let Err(e) = tx.try_send(message) {
+                            error!("Failed to send to client {}: {}", client_id, e);
+                        }
+                    }
                 }
-                Some((client.permits.clone(), client.tx.clone()))
-            } else {
-                None
             }
-        };
-        
-        // Now we can drop clients and use the cloned values
-        drop(clients);
-        
-        if let Some((permits, tx)) = (permits, tx) {
-            // Try to acquire permit without blocking
-            if let Ok(_permit) = permits.try_acquire_owned() {
-                if let Err(e) = tx.try_send(message) {
-                    error!("Failed to send to client {}: {}", client_id, e);
-                }
+            None => {
+                // Client doesn't exist
             }
         }
     }
