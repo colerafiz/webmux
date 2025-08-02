@@ -95,7 +95,6 @@
       :session-name="session.name"
       :is-active-session="isActive"
       @select-window="(window) => $emit('select-window', window)"
-      @refresh="$emit('refresh')"
       ref="windowList"
     />
   </div>
@@ -124,7 +123,6 @@ const emit = defineEmits<{
   kill: []
   rename: [newName: string]
   'select-window': [window: TmuxWindow]
-  refresh: []
 }>()
 
 const isEditing = ref<boolean>(false)

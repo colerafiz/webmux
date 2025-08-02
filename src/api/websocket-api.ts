@@ -5,13 +5,14 @@ import type {
   SessionCreateResponse, 
   SessionActionResponse,
   WindowCreateResponse,
-  SystemStats 
+  SystemStats,
+  WsMessage 
 } from '@/types'
 
 // Request-response tracking
 interface PendingRequest {
-  resolve: (value: any) => void
-  reject: (error: any) => void
+  resolve: (value: unknown) => void
+  reject: (error: Error) => void
   timeout: NodeJS.Timeout
 }
 
@@ -27,7 +28,7 @@ function generateRequestId(type: string, context?: string): string {
 // Helper to send request and wait for response
 async function sendRequest<T>(
   type: string, 
-  data: any = {}, 
+  data: Record<string, unknown> = {}, 
   responseType: string,
   timeout = 5000,
   context?: string
@@ -46,13 +47,13 @@ async function sendRequest<T>(
     
     // Store pending request
     pendingRequests.set(requestId, {
-      resolve,
+      resolve: (value: unknown) => resolve(value as T),
       reject,
       timeout: timeoutId
     })
     
     // Set up response handler
-    const handler = (response: any) => {
+    const handler = (response: WsMessage) => {
       // For windows-list, check if it's for the right session
       if (responseType === 'windows-list' && response.sessionName && context && response.sessionName !== context) {
         // This response is for a different session, ignore it
@@ -65,8 +66,8 @@ async function sendRequest<T>(
         pendingRequests.delete(requestId)
         
         // Check for error responses
-        if (response.error) {
-          pending.reject(new Error(response.error))
+        if ('error' in response && response.error) {
+          pending.reject(new Error(String(response.error)))
         } else {
           pending.resolve(response)
         }
@@ -74,12 +75,12 @@ async function sendRequest<T>(
     }
     
     // Set up error handler
-    const errorHandler = (response: any) => {
+    const errorHandler = (response: WsMessage) => {
       const pending = pendingRequests.get(requestId)
       if (pending) {
         clearTimeout(pending.timeout)
         pendingRequests.delete(requestId)
-        pending.reject(new Error(response.message || 'Unknown error'))
+        pending.reject(new Error(String(response.message || 'Unknown error')))
       }
     }
     

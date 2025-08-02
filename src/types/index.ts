@@ -1,7 +1,7 @@
 // WebSocket message types
 export interface WsMessage {
   type: string;
-  [key: string]: any;
+  [key: string]: string | number | boolean | object | undefined;
 }
 
 export interface AttachSessionMessage extends WsMessage {
@@ -71,7 +71,7 @@ export interface TmuxWindow {
 }
 
 // API response types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -113,23 +113,6 @@ export interface WindowSelectedMessage extends WsMessage {
   type: 'window-selected';
   sessionName: string;
   windowIndex: number;
-}
-
-// Audio streaming messages
-export interface AudioControlMessage extends WsMessage {
-  type: 'audio-control';
-  action: 'start' | 'stop';
-}
-
-export interface AudioStreamMessage extends WsMessage {
-  type: 'audio-stream';
-  data: string; // base64 encoded audio data
-}
-
-export interface AudioStatusMessage extends WsMessage {
-  type: 'audio-status';
-  streaming: boolean;
-  error?: string;
 }
 
 // API-specific response types

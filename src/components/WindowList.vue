@@ -70,6 +70,7 @@
       <div
         v-for="window in windows"
         :key="window.index"
+        v-memo="[window.name, window.active && props.isActiveSession, window.panes, isEditing(window)]"
         @click="$emit('select-window', window)"
         class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover-bg text-xs transition-all duration-150"
         :class="{ 'bg-opacity-30': window.active && props.isActiveSession }"
@@ -149,9 +150,8 @@ const props = withDefaults(defineProps<Props>(), {
   isActiveSession: false
 })
 
-const emit = defineEmits<{
+defineEmits<{
   'select-window': [window: TmuxWindow]
-  refresh: []
 }>()
 
 const windows = ref<TmuxWindow[]>([])
@@ -195,7 +195,7 @@ const loadWindows = async (showLoading: boolean = true): Promise<void> => {
     } else {
       console.log('Session changed while loading windows, ignoring stale data')
     }
-  } catch (err: any) {
+  } catch (err) {
     // Only show error if we're still on the same session
     if (props.sessionName === loadingForSession) {
       error.value = true
@@ -236,7 +236,6 @@ const confirmCreateWindow = async (): Promise<void> => {
   try {
     await websocketApi.createWindow(props.sessionName, savedName || undefined)
     // Real update will come through WebSocket
-    emit('refresh')
   } catch (err) {
     console.error('Failed to create window:', err)
     // Revert optimistic update
@@ -269,7 +268,6 @@ const confirmDelete = async (): Promise<void> => {
   try {
     await websocketApi.killWindow(props.sessionName, windowToRemove.index)
     // Real update will come through WebSocket
-    emit('refresh')
   } catch (err) {
     console.error('Failed to kill window:', err)
     // Revert optimistic update

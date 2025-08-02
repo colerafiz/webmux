@@ -36,7 +36,6 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "autoprefixer": "^10.4.17",
-    "axios": "^1.6.5",
     "concurrently": "^8.2.2",
     "eslint": "^9.32.0",
     "eslint-plugin-vue": "^10.4.0",

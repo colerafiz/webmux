@@ -171,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, shallowRef } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -186,21 +186,24 @@ interface Props {
 const props = defineProps<Props>()
 
 const terminalContainer = ref<HTMLDivElement | null>(null)
-let terminal: Terminal | null = null
-let fitAddon: FitAddon | null = null
-// Removed unused focusInterval
+const terminal = shallowRef<Terminal | null>(null)
+const fitAddon = shallowRef<FitAddon | null>(null)
 const terminalSize = ref<TerminalSize>({ cols: 80, rows: 24 })
 const ctrlPressed = ref<boolean>(false)
 const isMobile = computed(() => window.innerWidth < 768)
 
-// Declare cleanup at module level so it's accessible in onUnmounted
-const cleanup = reactive({
-  pendingWrites: [] as string[],
-  rafId: null as number | null
-})
+// Performance optimization: Output buffering
+const outputBuffer = {
+  data: [] as string[],
+  rafId: null as number | null,
+  lastFlush: 0,
+  flushInterval: 16, // 60fps max
+  maxBufferSize: 100 // Flush if buffer gets too large
+}
+
 
 onMounted(() => {
-  terminal = new Terminal({
+  const term = new Terminal({
     cursorBlink: true,
     fontSize: 13,
     fontFamily: 'JetBrains Mono, SF Mono, Monaco, Inconsolata, Fira Code, monospace',
@@ -227,7 +230,7 @@ onMounted(() => {
       brightCyan: '#a5d6ff',
       brightWhite: '#ffffff'
     },
-    scrollback: 10000,
+    scrollback: 5000, // Reduced for better performance
     tabStopWidth: 8,
     // @ts-ignore - bellStyle is a valid option but not in types
     bellStyle: 'none',
@@ -235,21 +238,24 @@ onMounted(() => {
     lineHeight: 1.2
   })
 
-  fitAddon = new FitAddon()
-  terminal.loadAddon(fitAddon)
+  const fit = new FitAddon()
+  term.loadAddon(fit)
   
-  if (terminalContainer.value) {
-    terminal.open(terminalContainer.value)
+  terminal.value = term
+  fitAddon.value = fit
+  
+  if (terminalContainer.value && terminal.value) {
+    terminal.value.open(terminalContainer.value)
   }
   
   // Initial fit with a small delay to ensure container is properly sized
   setTimeout(() => {
-    if (fitAddon) fitAddon.fit()
-    if (terminal) terminal.focus()
+    if (fitAddon.value) fitAddon.value.fit()
+    if (terminal.value) terminal.value.focus()
   }, 100)
 
-  if (terminal) {
-    terminal.onData((data) => {
+  if (terminal.value) {
+    terminal.value.onData((data) => {
       if (props.ws.isConnected.value) {
         // If CTRL is toggled on mobile, modify the input
         if (ctrlPressed.value && data.length === 1) {
@@ -267,8 +273,8 @@ onMounted(() => {
     })
 
     // Auto-copy selected text to clipboard
-    terminal.onSelectionChange(() => {
-      const selection = terminal?.getSelection()
+    terminal.value.onSelectionChange(() => {
+      const selection = terminal.value?.getSelection()
       if (selection) {
         navigator.clipboard.writeText(selection).catch(err => {
           console.error('Failed to copy to clipboard:', err)
@@ -277,7 +283,7 @@ onMounted(() => {
     })
 
     // Handle paste with Ctrl+V/Cmd+V
-    terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+    terminal.value.attachCustomKeyEventHandler((event: KeyboardEvent) => {
       // Handle paste (Ctrl+V or Cmd+V)
       if ((event.ctrlKey || event.metaKey) && event.key === 'v' && !event.shiftKey) {
         event.preventDefault()
@@ -289,8 +295,8 @@ onMounted(() => {
     })
   }
 
-  if (terminal) {
-    terminal.onResize((size) => {
+  if (terminal.value) {
+    terminal.value.onResize((size) => {
       terminalSize.value = { cols: size.cols, rows: size.rows }
       if (props.ws.isConnected.value) {
         const message: ResizeMessage = {
@@ -303,40 +309,58 @@ onMounted(() => {
     })
   }
 
-  // Simple batching approach with requestAnimationFrame
-  const flushWrites = () => {
-    if (cleanup.pendingWrites.length > 0 && terminal) {
-      const data = cleanup.pendingWrites.join('')
-      cleanup.pendingWrites = []
+  // Optimized output buffering with flow control
+  const flushOutputBuffer = () => {
+    const now = performance.now()
+    
+    // Throttle flushes to maintain 60fps
+    if (now - outputBuffer.lastFlush < outputBuffer.flushInterval && 
+        outputBuffer.data.length < outputBuffer.maxBufferSize) {
+      // Schedule next flush
+      outputBuffer.rafId = requestAnimationFrame(flushOutputBuffer)
+      return
+    }
+    
+    if (outputBuffer.data.length > 0 && terminal.value) {
+      const data = outputBuffer.data.join('')
+      outputBuffer.data = []
+      outputBuffer.lastFlush = now
       
       try {
-        // Write all pending data at once
-        terminal.write(data)
+        terminal.value.write(data)
       } catch (err) {
         console.error('Terminal write error:', err)
       }
     }
-    cleanup.rafId = null
+    outputBuffer.rafId = null
   }
   
-  // WebSocket message handler with RAF batching
+  // WebSocket message handler with optimized buffering
   props.ws.onMessage<OutputMessage>('output', (data) => {
-    if (terminal && data.data) {
-      cleanup.pendingWrites.push(data.data)
+    if (terminal.value && data.data) {
+      outputBuffer.data.push(data.data)
       
       // Schedule flush if not already scheduled
-      if (!cleanup.rafId) {
-        cleanup.rafId = requestAnimationFrame(flushWrites)
+      if (!outputBuffer.rafId) {
+        outputBuffer.rafId = requestAnimationFrame(flushOutputBuffer)
+      }
+      
+      // Force flush if buffer is getting too large
+      if (outputBuffer.data.length >= outputBuffer.maxBufferSize) {
+        if (outputBuffer.rafId) {
+          cancelAnimationFrame(outputBuffer.rafId)
+        }
+        flushOutputBuffer()
       }
     }
   })
 
   props.ws.onMessage('disconnected', () => {
-    if (terminal) terminal.write('\r\n\r\n[Session disconnected]\r\n')
+    if (terminal.value) terminal.value.write('\r\n\r\n[Session disconnected]\r\n')
   })
 
   props.ws.onMessage('attached', () => {
-    if (terminal) terminal.focus()
+    if (terminal.value) terminal.value.focus()
     handleResize()
   })
   
@@ -344,7 +368,7 @@ onMounted(() => {
   // Focus terminal on click
   if (terminalContainer.value) {
     terminalContainer.value.addEventListener('click', () => {
-      if (terminal) terminal.focus()
+      if (terminal.value) terminal.value.focus()
     })
   }
   
@@ -363,14 +387,14 @@ onMounted(() => {
 
 onUnmounted(() => {
   // Cancel any pending animation frame
-  if (cleanup.rafId) {
-    cancelAnimationFrame(cleanup.rafId)
-    cleanup.rafId = null
+  if (outputBuffer.rafId) {
+    cancelAnimationFrame(outputBuffer.rafId)
+    outputBuffer.rafId = null
   }
-  cleanup.pendingWrites = []
+  outputBuffer.data = []
   
-  if (terminal) {
-    terminal.dispose()
+  if (terminal.value) {
+    terminal.value.dispose()
   }
   props.ws.offMessage('output')
   props.ws.offMessage('disconnected')
@@ -380,8 +404,8 @@ onUnmounted(() => {
 })
 
 watch(() => props.session, () => {
-  if (terminal) {
-    terminal.clear()
+  if (terminal.value) {
+    terminal.value.clear()
   }
   attachToSession()
 })
@@ -393,15 +417,15 @@ const attachToSession = async (): Promise<void> => {
   let cols = 80
   let rows = 24
   
-  if (fitAddon && terminal) {
-    const dimensions = fitAddon.proposeDimensions()
+  if (fitAddon.value && terminal.value) {
+    const dimensions = fitAddon.value.proposeDimensions()
     if (dimensions && dimensions.cols > 0 && dimensions.rows > 0) {
       cols = dimensions.cols
       rows = dimensions.rows
     } else {
       // Use terminal dimensions as fallback
-      cols = terminal.cols || 80
-      rows = terminal.rows || 24
+      cols = terminal.value.cols || 80
+      rows = terminal.value.rows || 24
     }
   }
   
@@ -415,14 +439,14 @@ const attachToSession = async (): Promise<void> => {
 }
 
 const handleResize = (): void => {
-  if (fitAddon && terminal && terminalContainer.value) {
+  if (fitAddon.value && terminal.value && terminalContainer.value) {
     try {
       // Ensure container has valid dimensions before fitting
       const rect = terminalContainer.value.getBoundingClientRect()
       if (rect.width > 0 && rect.height > 0) {
-        fitAddon.fit()
+        fitAddon.value.fit()
         // Send the new dimensions to the server
-        const dimensions = fitAddon.proposeDimensions()
+        const dimensions = fitAddon.value.proposeDimensions()
         if (dimensions && dimensions.cols > 0 && dimensions.rows > 0) {
           terminalSize.value = { cols: dimensions.cols, rows: dimensions.rows }
           if (props.ws.isConnected.value) {
@@ -445,13 +469,12 @@ const handleResize = (): void => {
 let resizeTimeout: ReturnType<typeof setTimeout> | null = null
 const debouncedResize = (): void => {
   if (resizeTimeout) clearTimeout(resizeTimeout)
-  resizeTimeout = setTimeout(handleResize, 100)
+  resizeTimeout = setTimeout(handleResize, 200) // Increased debounce for better performance
 }
 
 const focusTerminal = (): void => {
-  if (terminal) {
-    terminal.focus()
-    console.log('Terminal focused on click')
+  if (terminal.value) {
+    terminal.value.focus()
   }
 }
 
@@ -475,7 +498,7 @@ const handleTouchEnd = (_e: TouchEvent): void => {
 
 // Mobile keyboard control methods
 const sendKey = (key: string): void => {
-  if (!terminal || !props.ws.isConnected.value) return
+  if (!terminal.value || !props.ws.isConnected.value) return
   
   const keyMap: Record<string, string> = {
     'Escape': '\x1b',
@@ -495,21 +518,17 @@ const sendKey = (key: string): void => {
   }
   props.ws.send(message)
   
-  terminal.focus()
+  terminal.value.focus()
 }
 
 const sendCtrlKey = (key: string): void => {
-  console.log('sendCtrlKey called with:', key)
-  if (!terminal || !props.ws.isConnected.value) {
-    console.log('Terminal or WebSocket not ready')
+  if (!terminal.value || !props.ws.isConnected.value) {
     return
   }
   
   // Convert letter to control character
   const code = key.toUpperCase().charCodeAt(0) - 64
   const ctrlChar = String.fromCharCode(code)
-  
-  console.log('Sending Ctrl+' + key + ' as char code:', code)
   
   // Send through WebSocket
   const message: InputMessage = {
@@ -518,12 +537,12 @@ const sendCtrlKey = (key: string): void => {
   }
   props.ws.send(message)
   
-  terminal.focus()
+  terminal.value.focus()
 }
 
 const toggleCtrl = (): void => {
   ctrlPressed.value = !ctrlPressed.value
-  if (terminal) terminal.focus()
+  if (terminal.value) terminal.value.focus()
   
   // Auto-release after 5 seconds
   if (ctrlPressed.value) {
@@ -544,7 +563,7 @@ const splitHorizontal = (): void => {
   }
   props.ws.send(message)
   
-  if (terminal) terminal.focus()
+  if (terminal.value) terminal.value.focus()
 }
 
 const splitVertical = (): void => {
@@ -558,13 +577,13 @@ const splitVertical = (): void => {
   }
   props.ws.send(message)
   
-  if (terminal) terminal.focus()
+  if (terminal.value) terminal.value.focus()
 }
 
 const pasteFromClipboard = async (): Promise<void> => {
   try {
     // First ensure terminal has focus
-    if (terminal) terminal.focus()
+    if (terminal.value) terminal.value.focus()
     
     // Try to read from clipboard
     let text = await navigator.clipboard.readText()
@@ -593,8 +612,8 @@ const pasteFromClipboard = async (): Promise<void> => {
     
     // Try alternative paste method using execCommand
     try {
-      if (terminal) {
-        terminal.focus()
+      if (terminal.value) {
+        terminal.value.focus()
         const result = document.execCommand('paste')
         console.log('execCommand paste result:', result)
       }
