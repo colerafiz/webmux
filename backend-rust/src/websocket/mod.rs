@@ -132,15 +132,26 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     // Clone client_id for the spawned task
     let _task_client_id = client_id.clone();
     
-    // Spawn task to forward server messages to WebSocket
+    // Spawn task to forward server messages to WebSocket with backpressure handling
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             match msg {
                 BroadcastMessage::Text(json) => {
-                    let _ = sender.send(Message::Text(json.to_string())).await;
+                    // Check if we can send without blocking
+                    if let Err(e) = sender.send(Message::Text(json.to_string())).await {
+                        error!("Failed to send message to WebSocket: {}", e);
+                        break;
+                    }
+                    // Add small delay to prevent flooding
+                    if json.contains("\"type\":\"output\"") && json.len() > 1000 {
+                        tokio::time::sleep(tokio::time::Duration::from_micros(100)).await;
+                    }
                 }
                 BroadcastMessage::Binary(data) => {
-                    let _ = sender.send(Message::Binary(data.to_vec())).await;
+                    if let Err(e) = sender.send(Message::Binary(data.to_vec())).await {
+                        error!("Failed to send binary to WebSocket: {}", e);
+                        break;
+                    }
                 }
             }
         }
@@ -378,11 +389,12 @@ async fn attach_to_session(
     let client_id = state.client_id.clone();
     let reader_task = tokio::task::spawn_blocking(move || {
         let mut reader = reader;
-        let mut buffer = vec![0u8; 65536]; // Larger buffer for better throughput
+        let mut buffer = vec![0u8; 8192]; // Smaller buffer to prevent overwhelming
         let mut consecutive_errors = 0;
         let mut utf8_decoder = crate::terminal_buffer::Utf8StreamDecoder::new();
-        let mut pending_output = String::new();
+        let mut pending_output = String::with_capacity(16384);
         let mut last_send = std::time::Instant::now();
+        let mut bytes_since_pause = 0usize;
         
         loop {
             match reader.read(&mut buffer) {
@@ -405,9 +417,12 @@ async fn attach_to_session(
                     if !text.is_empty() {
                         pending_output.push_str(&text);
                         
-                        // Send if we have enough data OR enough time has passed
-                        let should_send = pending_output.len() > 4096 || 
-                                         last_send.elapsed() > std::time::Duration::from_millis(16); // ~60fps
+                        bytes_since_pause += text.len();
+                        
+                        // More aggressive sending for better responsiveness
+                        let should_send = pending_output.len() > 1024 || 
+                                         last_send.elapsed() > std::time::Duration::from_millis(10) ||
+                                         pending_output.contains('\n'); // Send on newlines
                         
                         if should_send && !pending_output.is_empty() {
                             let output = ServerMessage::Output { data: pending_output.clone() };
@@ -419,6 +434,12 @@ async fn attach_to_session(
                             }
                             pending_output.clear();
                             last_send = std::time::Instant::now();
+                            
+                            // Flow control: pause if we're sending too much data
+                            if bytes_since_pause > 65536 { // 64KB threshold
+                                std::thread::sleep(std::time::Duration::from_millis(5));
+                                bytes_since_pause = 0;
+                            }
                         }
                     }
                 }

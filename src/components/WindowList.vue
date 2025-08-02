@@ -71,7 +71,7 @@
         v-for="window in windows"
         :key="window.index"
         @click="$emit('select-window', window)"
-        class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover-bg text-xs"
+        class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover-bg text-xs transition-all duration-150"
         :class="{ 'bg-opacity-30': window.active && props.isActiveSession }"
         :style="{
           background: window.active && props.isActiveSession ? 'var(--bg-tertiary)' : 'transparent',
@@ -155,11 +155,14 @@ const emit = defineEmits<{
 }>()
 
 const windows = ref<TmuxWindow[]>([])
-const loading = ref<boolean>(true)
+const loading = ref<boolean>(false) // Start with false to prevent flicker
 const error = ref<boolean>(false)
 const editingWindow = ref<TmuxWindow | null>(null)
 const editingName = ref<string>('')
 const editInput = ref<HTMLInputElement | null>(null)
+
+// Track if we've loaded windows for this session
+let hasLoadedInitial = false
 
 // Modal state for new window
 const showCreateModal = ref(false)
@@ -173,18 +176,22 @@ const windowToDelete = ref<TmuxWindow | null>(null)
 // WebSocket for real-time updates
 const ws = useWebSocket()
 
-const loadWindows = async (): Promise<void> => {
+const loadWindows = async (showLoading: boolean = true): Promise<void> => {
   // Store the session name we're loading for
   const loadingForSession = props.sessionName
   
   try {
-    loading.value = true
+    // Only show loading on initial load or if explicitly requested
+    if (showLoading && !hasLoadedInitial) {
+      loading.value = true
+    }
     error.value = false
     const loadedWindows = await tmuxApi.getWindows(props.sessionName)
     
     // Only update if we're still showing the same session
     if (props.sessionName === loadingForSession) {
       windows.value = loadedWindows
+      hasLoadedInitial = true
     } else {
       console.log('Session changed while loading windows, ignoring stale data')
     }
@@ -300,7 +307,7 @@ const confirmRename = async (window: TmuxWindow): Promise<void> => {
   if (editingName.value && editingName.value !== window.name) {
     try {
       await tmuxApi.renameWindow(props.sessionName, window.index, editingName.value)
-      await loadWindows()
+      await loadWindows(false) // Don't show loading for rename
     } catch (err) {
       console.error('Failed to rename window:', err)
     }
@@ -328,7 +335,7 @@ onMounted(() => {
       console.log('Window selected, refreshing windows for session:', props.sessionName)
       // Small delay to ensure tmux has updated
       setTimeout(() => {
-        loadWindows()
+        loadWindows(false) // Don't show loading for updates
       }, 100)
     }
   })
@@ -343,11 +350,14 @@ onUnmounted(() => {
 watch(() => props.sessionName, (newSessionName, oldSessionName) => {
   if (newSessionName !== oldSessionName) {
     console.log('Session changed from', oldSessionName, 'to', newSessionName, '- reloading windows')
+    // Reset the initial load flag for new session
+    hasLoadedInitial = false
+    windows.value = [] // Clear immediately to prevent showing stale data
     loadWindows()
   }
 })
 
 defineExpose({
-  refresh: loadWindows
+  refresh: () => loadWindows(false) // Don't show loading on manual refresh
 })
 </script>

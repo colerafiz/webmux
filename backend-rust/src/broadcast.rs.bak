@@ -1,0 +1,121 @@
+use bytes::Bytes;
+use crossbeam::queue::SegQueue;
+use dashmap::DashMap;
+use std::sync::Arc;
+use tokio::sync::mpsc;
+
+// Zero-allocation broadcast message
+#[derive(Clone)]
+pub enum BroadcastMsg {
+    Text(Arc<str>),     // Pre-serialized JSON
+    Binary(Bytes),      // Zero-copy binary data
+}
+
+// Lock-free broadcast system
+pub struct Broadcaster {
+    // Client channels indexed by ID for O(1) removal
+    clients: Arc<DashMap<String, mpsc::UnboundedSender<BroadcastMsg>>>,
+    // Pre-serialized common messages
+    cached_messages: Arc<DashMap<String, Arc<str>>>,
+    // Message queue for batch processing
+    queue: Arc<SegQueue<(BroadcastMsg, Option<String>)>>, // (message, target_client_id)
+}
+
+impl Broadcaster {
+    pub fn new() -> Self {
+        let broadcaster = Self {
+            clients: Arc::new(DashMap::new()),
+            cached_messages: Arc::new(DashMap::new()),
+            queue: Arc::new(SegQueue::new()),
+        };
+
+        // Pre-cache common messages
+        broadcaster.cache_message("pong", r#"{"type":"pong"}"#);
+        broadcaster.cache_message("disconnected", r#"{"type":"disconnected"}"#);
+
+        // Spawn batch processor
+        let queue = broadcaster.queue.clone();
+        let clients = broadcaster.clients.clone();
+        
+        tokio::spawn(async move {
+            let mut batch = Vec::with_capacity(100);
+            
+            loop {
+                // Collect batch
+                batch.clear();
+                while batch.len() < 100 {
+                    if let Some(msg) = queue.pop() {
+                        batch.push(msg);
+                    } else {
+                        break;
+                    }
+                }
+
+                if batch.is_empty() {
+                    tokio::time::sleep(tokio::time::Duration::from_micros(100)).await;
+                    continue;
+                }
+
+                // Process batch
+                for (msg, target) in &batch {
+                    if let Some(target_id) = target {
+                        // Unicast
+                        if let Some(client) = clients.get(target_id) {
+                            let _ = client.send(msg.clone());
+                        }
+                    } else {
+                        // Broadcast
+                        for client in clients.iter() {
+                            let _ = client.value().send(msg.clone());
+                        }
+                    }
+                }
+            }
+        });
+
+        broadcaster
+    }
+
+    pub fn add_client(&self, id: String) -> mpsc::UnboundedReceiver<BroadcastMsg> {
+        let (tx, rx) = mpsc::unbounded_channel();
+        self.clients.insert(id, tx);
+        rx
+    }
+
+    pub fn remove_client(&self, id: &str) {
+        self.clients.remove(id);
+    }
+
+    pub fn send_cached(&self, key: &str) {
+        if let Some(msg) = self.cached_messages.get(key) {
+            self.broadcast_text(msg.clone());
+        }
+    }
+
+    pub fn broadcast_text(&self, text: Arc<str>) {
+        self.queue.push((BroadcastMsg::Text(text), None));
+    }
+
+    pub fn broadcast_binary(&self, data: Bytes) {
+        self.queue.push((BroadcastMsg::Binary(data), None));
+    }
+
+    pub fn send_to(&self, client_id: &str, msg: BroadcastMsg) {
+        self.queue.push((msg, Some(client_id.to_string())));
+    }
+
+    pub fn broadcast_json<T: serde::Serialize>(&self, msg: &T) -> Result<(), serde_json::Error> {
+        let json = serde_json::to_string(msg)?;
+        self.broadcast_text(Arc::from(json));
+        Ok(())
+    }
+
+    fn cache_message(&self, key: &str, json: &str) {
+        self.cached_messages.insert(key.to_string(), Arc::from(json));
+    }
+}
+
+// Global broadcaster for zero-allocation access
+lazy_static::lazy_static! {
+    pub static ref BROADCASTER: Broadcaster = Broadcaster::new();
+}

@@ -297,23 +297,33 @@ onMounted(() => {
     })
   }
 
-  // Direct terminal writing - no client buffering to avoid freeze issues
-  props.ws.onMessage<OutputMessage>('output', (data) => {
-    if (terminal) {
+  // Simple batching approach with requestAnimationFrame
+  let pendingWrites: string[] = []
+  let rafId: number | null = null
+  
+  const flushWrites = () => {
+    if (pendingWrites.length > 0 && terminal) {
+      const data = pendingWrites.join('')
+      pendingWrites = []
+      
       try {
-        terminal.write(data.data)
+        // Write all pending data at once
+        terminal.write(data)
       } catch (err) {
-        console.warn('Error writing to terminal:', err)
-        // If terminal write fails, try to recover
-        setTimeout(() => {
-          if (terminal) {
-            try {
-              terminal.write(data.data)
-            } catch (retryErr) {
-              console.error('Terminal write retry failed:', retryErr)
-            }
-          }
-        }, 100)
+        console.error('Terminal write error:', err)
+      }
+    }
+    rafId = null
+  }
+  
+  // WebSocket message handler with RAF batching
+  props.ws.onMessage<OutputMessage>('output', (data) => {
+    if (terminal && data.data) {
+      pendingWrites.push(data.data)
+      
+      // Schedule flush if not already scheduled
+      if (!rafId) {
+        rafId = requestAnimationFrame(flushWrites)
       }
     }
   })
@@ -349,6 +359,13 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // Cancel any pending animation frame
+  if (rafId) {
+    cancelAnimationFrame(rafId)
+    rafId = null
+  }
+  pendingWrites = []
+  
   if (terminal) {
     terminal.dispose()
   }

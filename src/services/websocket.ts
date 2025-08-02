@@ -54,9 +54,15 @@ class WebSocketManager {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as WsMessage
-          console.log('WebSocket message received:', data.type, data.type === 'audio-stream' ? '(audio data)' : data)
+          // Don't log output messages as they can be very frequent
+          if (data.type !== 'output') {
+            console.log('WebSocket message received:', data.type, data.type === 'audio-stream' ? '(audio data)' : data)
+          }
           const handlers = this.messageHandlers.get(data.type) || []
-          console.log(`Handlers for ${data.type}:`, handlers.length)
+          // Only log handler count for non-output messages
+          if (data.type !== 'output' && handlers.length === 0) {
+            console.warn(`No handlers for message type: ${data.type}`)
+          }
           handlers.forEach(handler => handler(data))
         } catch (error) {
           console.error('Error parsing WebSocket message:', error)

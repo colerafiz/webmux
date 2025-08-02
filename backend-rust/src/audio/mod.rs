@@ -138,10 +138,13 @@ async fn start_ffmpeg(state: &mut AudioState) -> Result<()> {
             match stdout.read(&mut buffer).await {
                 Ok(0) => break, // EOF
                 Ok(n) => {
-                    // Send as binary frame for efficiency
-                    let data = Bytes::copy_from_slice(&buffer[..n]);
+                    // Convert to base64 and send as JSON for client compatibility
+                    let base64_data = base64::encode(&buffer[..n]);
+                    let msg = ServerMessage::AudioStream {
+                        data: base64_data,
+                    };
                     info!("Sending audio chunk: {} bytes", n);
-                    broadcast_binary_to_clients(&clients_clone, data).await;
+                    broadcast_json_to_clients(&clients_clone, msg).await;
                 }
                 Err(e) => {
                     error!("Error reading ffmpeg output: {}", e);
@@ -210,13 +213,14 @@ async fn notify_clients_error(state: &AudioState, error: &str) {
     }
 }
 
-async fn broadcast_binary_to_clients(
+async fn broadcast_json_to_clients<T: serde::Serialize>(
     clients: &[AudioClient],
-    data: Bytes,
+    message: T,
 ) {
-    info!("Broadcasting binary to {} clients", clients.len());
-    let msg = BroadcastMessage::Binary(data);
-    for client in clients {
-        let _ = client.send(msg.clone());
+    if let Ok(json) = serde_json::to_string(&message) {
+        let msg = BroadcastMessage::Text(Arc::new(json));
+        for client in clients {
+            let _ = client.send(msg.clone());
+        }
     }
 }

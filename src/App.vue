@@ -5,9 +5,8 @@
         <div class="flex items-center justify-between h-12">
           <div class="flex items-center space-x-3 md:space-x-6">
             <button
-              v-if="isMobile"
-              @click="sidebarCollapsed = false"
-              class="p-1.5 hover-bg rounded md:hidden"
+              @click="toggleSidebar"
+              class="p-1.5 hover-bg rounded ml-1"
               style="color: var(--text-tertiary)"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -18,6 +17,64 @@
             <div class="hidden sm:flex items-center space-x-4 text-xs" style="color: var(--text-secondary)">
               <span class="hidden md:inline">{{ stats.hostname }}</span>
               <span>{{ stats.platform }}/{{ stats.arch }}</span>
+            </div>
+          </div>
+          
+          <!-- Search Bar - Center section with fixed max width -->
+          <div class="flex-1 flex justify-center px-2">
+            <div class="relative w-full max-w-xs">
+              <input
+                v-model="searchQuery"
+                @focus="showSearchResults = true"
+                @blur="handleSearchBlur"
+                @keydown.escape="closeSearch"
+                @keydown.enter="selectFirstResult"
+                @keydown.down.prevent="navigateResults(1)"
+                @keydown.up.prevent="navigateResults(-1)"
+                type="text"
+                placeholder="Search windows... (⌘K)"
+                class="w-full px-3 py-1 text-xs rounded-md focus:outline-none focus:ring-1 transition-all duration-150"
+                :class="showSearchResults ? 'ring-1' : ''"
+                style="background: var(--bg-primary); border: 1px solid var(--border-secondary); color: var(--text-primary); --tw-ring-color: var(--accent-primary)"
+                ref="searchInput"
+              />
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg class="w-3.5 h-3.5" style="color: var(--text-tertiary)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              
+              <!-- Search Results Dropdown -->
+              <transition name="fade">
+                <div
+                  v-if="showSearchResults && filteredWindows.length > 0"
+                  class="absolute top-full left-0 right-0 mt-1 rounded-md shadow-lg overflow-hidden z-50"
+                  style="background: var(--bg-secondary); border: 1px solid var(--border-primary)"
+                >
+                  <div class="max-h-64 overflow-y-auto">
+                    <button
+                      v-for="(item, index) in filteredWindows"
+                      :key="`${item.sessionName}-${item.window.index}`"
+                      @mousedown.prevent="selectWindow(item)"
+                      @mouseenter="selectedIndex = index"
+                      class="w-full px-3 py-2 text-left hover-bg transition-colors text-xs"
+                      :class="{ 'bg-opacity-50': selectedIndex === index }"
+                      :style="selectedIndex === index ? 'background: var(--bg-tertiary)' : ''"
+                    >
+                      <div class="flex items-center space-x-1">
+                        <span style="color: var(--text-secondary)">{{ item.sessionName }}</span>
+                        <span style="color: var(--text-tertiary)">/</span>
+                        <span class="font-medium" style="color: var(--text-primary)">{{ item.window.name }}</span>
+                        <span style="color: var(--text-tertiary)">&</span>
+                        <span style="color: var(--text-secondary)">{{ item.window.panes }} {{ item.window.panes === 1 ? 'pane' : 'panes' }}</span>
+                        <span v-if="item.window.active && item.sessionName === currentSession" 
+                              class="w-1.5 h-1.5 rounded-full ml-2" 
+                              style="background: var(--accent-primary)"></span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </transition>
             </div>
           </div>
           
@@ -38,7 +95,7 @@
                 <span class="stat-badge">{{ formatUptime(stats.uptime) }}</span>
               </div>
             </div>
-            <div class="text-xs" style="color: var(--text-tertiary)">
+            <div class="text-xs pr-1" style="color: var(--text-tertiary)">
               {{ currentTime }}
             </div>
           </div>
@@ -47,15 +104,17 @@
     </header>
 
     <div class="flex h-[calc(100vh-3rem)]">
-      <!-- Mobile: Show backdrop when sidebar is open -->
+      <!-- Mobile: Backdrop when sidebar is open -->
       <div 
         v-if="isMobile && !sidebarCollapsed" 
-        class="fixed top-12 left-0 right-0 bottom-0 bg-black bg-opacity-50 z-40"
+        class="fixed top-0 left-0 right-0 bottom-0 bg-black bg-opacity-50 z-40 md:hidden"
         @click="sidebarCollapsed = true"
       ></div>
       
+      <!-- Desktop: Normal sidebar that pushes content -->
+      <!-- Mobile: Overlay sidebar -->
       <SessionList 
-        v-show="!isMobile || !sidebarCollapsed"
+        v-show="!sidebarCollapsed || !isMobile"
         :sessions="sessions" 
         :currentSession="currentSession"
         :isCollapsed="sidebarCollapsed && !isMobile"
@@ -82,14 +141,6 @@
           <div class="text-center p-4">
             <p class="text-sm mb-2" style="color: var(--text-secondary)">No active session</p>
             <p class="text-xs mb-4" style="color: var(--text-tertiary)">Select or create a tmux session</p>
-            <button
-              v-if="isMobile"
-              @click="sidebarCollapsed = false"
-              class="px-4 py-2 text-sm border rounded"
-              style="background: var(--bg-secondary); border-color: var(--border-primary); color: var(--text-primary)"
-            >
-              Show Sessions
-            </button>
           </div>
         </div>
       </main>
@@ -98,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useWebSocket } from './composables/useWebSocket'
 import { tmuxApi } from './api/tmux'
@@ -112,6 +163,14 @@ const sidebarCollapsed = ref<boolean>(false)
 const windowWidth = ref<number>(window.innerWidth)
 const ws = useWebSocket()
 const currentTime = ref<string>('')
+
+// Search functionality
+const searchQuery = ref('')
+const showSearchResults = ref(false)
+const selectedIndex = ref(0)
+const searchInput = ref<HTMLInputElement>()
+const allWindows = ref<Array<{ sessionName: string, window: TmuxWindow }>>([])
+
 const stats = ref<SystemStats>({
   activeSessions: 0,
   totalSessions: 0,
@@ -137,6 +196,16 @@ const stats = ref<SystemStats>({
 // Mobile detection
 const isMobile = computed(() => windowWidth.value < 768) // md breakpoint
 
+// Computed property for filtered windows
+const filteredWindows = computed(() => {
+  if (!searchQuery.value.trim()) return []
+  const query = searchQuery.value.toLowerCase()
+  return allWindows.value.filter(item => 
+    item.window.name.toLowerCase().includes(query) ||
+    item.sessionName.toLowerCase().includes(query)
+  )
+})
+
 // Fetch system stats
 const fetchStats = async (): Promise<void> => {
   try {
@@ -147,10 +216,14 @@ const fetchStats = async (): Promise<void> => {
   }
 }
 
+
 // Update clock and stats
 let updateInterval: ReturnType<typeof setInterval> | undefined
+let handleKeydown: ((e: KeyboardEvent) => void) | undefined
+let handleResize: (() => void) | undefined
+
 onMounted(() => {
-  // Initialize sidebar state for mobile
+  // Initialize sidebar state - collapsed on mobile, expanded on desktop
   sidebarCollapsed.value = isMobile.value
   
   fetchStats()
@@ -164,8 +237,18 @@ onMounted(() => {
     fetchStats()
   }, 1000)
   
+  // Add keyboard shortcut for search (Cmd/Ctrl + K)
+  handleKeydown = (e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault()
+      searchInput.value?.focus()
+      showSearchResults.value = true
+    }
+  }
+  window.addEventListener('keydown', handleKeydown)
+  
   // Handle window resize for mobile detection
-  const handleResize = () => {
+  handleResize = () => {
     windowWidth.value = window.innerWidth
   }
   window.addEventListener('resize', handleResize)
@@ -173,6 +256,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (updateInterval) clearInterval(updateInterval)
+  if (handleKeydown) window.removeEventListener('keydown', handleKeydown)
+  if (handleResize) window.removeEventListener('resize', handleResize)
 })
 
 // Format helpers
@@ -205,6 +290,29 @@ const { data: sessions = [], refetch, isLoading } = useQuery({
   staleTime: 5000, // Cache for 5 seconds
   cacheTime: 10000 // Keep in cache for 10 seconds
 })
+
+// Update window list whenever sessions change
+const updateWindowList = async (): Promise<void> => {
+  const windowList: Array<{ sessionName: string, window: TmuxWindow }> = []
+  
+  for (const session of sessions.value) {
+    try {
+      const windows = await tmuxApi.getWindows(session.name)
+      windows.forEach(window => {
+        windowList.push({ sessionName: session.name, window })
+      })
+    } catch (err) {
+      console.error(`Failed to get windows for session ${session.name}:`, err)
+    }
+  }
+  
+  allWindows.value = windowList
+}
+
+// Watch sessions and update window list
+watch(() => sessions.value, () => {
+  updateWindowList()
+}, { immediate: true, deep: true })
 
 
 const handleCreateSession = async (sessionName: string): Promise<void> => {
@@ -263,8 +371,14 @@ const handleKillSession = async (sessionName: string): Promise<void> => {
       currentSession.value = null
     }
     
-    // Immediately refetch sessions
+    // Invalidate and refetch sessions immediately
+    await queryClient.invalidateQueries({ queryKey: ['sessions'] })
     await refetch()
+    
+    // Force a second refresh after a short delay to catch any async tmux updates
+    setTimeout(async () => {
+      await queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    }, 500)
   } catch (error) {
     console.error('Failed to kill session:', error)
   }
@@ -328,12 +442,61 @@ const toggleSidebar = (): void => {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
-// Auto-collapse sidebar on mobile when session is selected
+// Close sidebar when session is selected (only on mobile)
 const selectSession = (sessionName: string): void => {
   currentSession.value = sessionName
+  // Only close sidebar on mobile
   if (isMobile.value) {
     sidebarCollapsed.value = true
   }
 }
 
+// Search functionality
+const closeSearch = (): void => {
+  searchQuery.value = ''
+  showSearchResults.value = false
+  selectedIndex.value = 0
+  searchInput.value?.blur()
+}
+
+const handleSearchBlur = (): void => {
+  // Delay to allow click on results
+  setTimeout(() => {
+    showSearchResults.value = false
+  }, 200)
+}
+
+const selectFirstResult = (): void => {
+  if (filteredWindows.value.length > 0) {
+    selectWindow(filteredWindows.value[0])
+  }
+}
+
+const navigateResults = (direction: number): void => {
+  const maxIndex = filteredWindows.value.length - 1
+  selectedIndex.value = Math.max(0, Math.min(maxIndex, selectedIndex.value + direction))
+}
+
+const selectWindow = async (item: { sessionName: string, window: TmuxWindow }): Promise<void> => {
+  closeSearch()
+  
+  // First select the session if different
+  if (currentSession.value !== item.sessionName) {
+    currentSession.value = item.sessionName
+  }
+  
+  // Then select the window
+  await handleSelectWindow(item.sessionName, item.window)
+}
+
+
 </script>
+
+<style>
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+</style>
