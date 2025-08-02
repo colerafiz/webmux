@@ -8,11 +8,13 @@ WebMux is a Progressive Web App (PWA) that provides a web-based TMUX session vie
 
 ## Recent Changes
 
-- Migrated from REST API to WebSocket-based architecture for all terminal operations
-- Added centered search bar for quick window navigation
-- Fixed session isolation issues with alternative session manager
-- Improved performance with output buffering and flow control
-- Added experimental audio streaming capabilities
+- **Complete WebSocket Migration**: Removed all REST endpoints - everything now uses WebSocket for real-time communication
+- **Unified Communication**: All TMUX operations (sessions, windows, terminal I/O) go through a single WebSocket connection
+- **Real-time Updates**: Added TMUX monitor for automatic state synchronization across all clients
+- **Search Feature**: Added centered search bar for quick window navigation
+- **Session Isolation**: Fixed issues with alternative session manager
+- **Performance**: Improved output buffering and flow control for large outputs
+- **Audio Streaming**: Added experimental system audio capture via ffmpeg
 
 ## Common Commands
 
@@ -79,7 +81,6 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
 - **Composables**: 
   - `useWebSocket.ts` - WebSocket connection management with types
   - `useWindowSearch.ts` - Window search functionality
-- **API**: `src/api/tmux.ts` - REST API client for TMUX operations with typed responses
 - **Type definitions**: `src/types/index.ts` - Shared TypeScript types
 
 ### Key Technologies
@@ -93,36 +94,52 @@ Both servers bind to `0.0.0.0`, which means they accept connections from all net
 - **Terminal interface**: portable-pty for cross-platform pseudo-terminal support
 - **Audio streaming**: ffmpeg for system audio capture
 
-## API Endpoints
+## WebSocket API
 
-### REST API
-- `GET /api/sessions` - List all TMUX sessions
-- `POST /api/sessions` - Create new TMUX session
-- `POST /api/sessions/:name/kill` - Kill a session
-- `POST /api/sessions/:name/rename` - Rename a session
-- `GET /api/sessions/:name/windows` - List windows in a session
-- `POST /api/sessions/:name/windows` - Create new window
-- `DELETE /api/sessions/:sessionName/windows/:windowIndex` - Kill a window
-- `POST /api/sessions/:sessionName/windows/:windowIndex/rename` - Rename a window
-- `POST /api/sessions/:sessionName/windows/:windowIndex/select` - Select a window
-- `GET /api/stats` - System statistics
+All communication happens through WebSocket connections at `/ws`. There are no REST endpoints - everything is handled via real-time WebSocket messages.
 
 ### WebSocket Messages
-- Client → Server:
+**Client → Server:**
+- Session Management:
+  - `{ type: 'list-sessions' }`
+  - `{ type: 'create-session', name }`
   - `{ type: 'attach-session', sessionName, cols, rows }`
+  - `{ type: 'kill-session', sessionName }`
+  - `{ type: 'rename-session', sessionName, newName }`
+- Terminal I/O:
   - `{ type: 'input', data }`
   - `{ type: 'resize', cols, rows }`
+- Window Management:
   - `{ type: 'list-windows', sessionName }`
+  - `{ type: 'create-window', sessionName, windowName? }`
   - `{ type: 'select-window', sessionName, windowIndex }`
-  - `{ type: 'start-audio' }` - Start audio streaming
-  - `{ type: 'stop-audio' }` - Stop audio streaming
-- Server → Client:
-  - `{ type: 'output', data }`
+  - `{ type: 'kill-window', sessionName, windowIndex }`
+  - `{ type: 'rename-window', sessionName, windowIndex, newName }`
+- Audio Streaming:
+  - `{ type: 'start-audio' }`
+  - `{ type: 'stop-audio' }`
+
+**Server → Client:**
+- Session Updates:
+  - `{ type: 'sessions-list', sessions }`
+  - `{ type: 'session-created', session }`
+  - `{ type: 'session-killed', sessionName }`
+  - `{ type: 'session-renamed', oldName, newName }`
   - `{ type: 'attached', sessionName }`
   - `{ type: 'disconnected' }`
+- Terminal Output:
+  - `{ type: 'output', data }`
+- Window Updates:
   - `{ type: 'windows-list', windows }`
+  - `{ type: 'window-created', window }`
+  - `{ type: 'window-selected', windowIndex }`
+  - `{ type: 'window-killed', windowIndex }`
+  - `{ type: 'window-renamed', windowIndex, newName }`
+- Audio Streaming:
   - `{ type: 'audio-data', data }` - Base64 encoded audio chunks
-  - `{ type: 'audio-status', streaming, error }` - Audio streaming status
+  - `{ type: 'audio-status', streaming, error }`
+- Real-time Monitoring:
+  - `{ type: 'tmux-update', event }` - Real-time TMUX state changes
 
 ## Testing & Debugging
 

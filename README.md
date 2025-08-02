@@ -149,44 +149,63 @@ The application accepts connections from any network interface:
 
 ## API Reference
 
-### REST Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/sessions` | List all TMUX sessions |
-| POST | `/api/sessions` | Create new TMUX session |
-| POST | `/api/sessions/:name/kill` | Kill a session |
-| POST | `/api/sessions/:name/rename` | Rename a session |
-| GET | `/api/sessions/:name/windows` | List windows in a session |
-| POST | `/api/sessions/:name/windows` | Create new window |
-| DELETE | `/api/sessions/:sessionName/windows/:windowIndex` | Kill a window |
-| POST | `/api/sessions/:sessionName/windows/:windowIndex/rename` | Rename a window |
-| POST | `/api/sessions/:sessionName/windows/:windowIndex/select` | Select a window |
-| GET | `/api/stats` | System statistics |
-
 ### WebSocket Protocol
+
+All communication with the backend happens through WebSocket connections. There are no REST endpoints - everything is handled via real-time WebSocket messages.
 
 Connect to `/ws` endpoint for terminal session management.
 
 **Client → Server Messages:**
 ```javascript
+// Session Management
+{ type: 'list-sessions' }
+{ type: 'create-session', name: string }
 { type: 'attach-session', sessionName: string, cols: number, rows: number }
+{ type: 'kill-session', sessionName: string }
+{ type: 'rename-session', sessionName: string, newName: string }
+
+// Terminal I/O
 { type: 'input', data: string }
 { type: 'resize', cols: number, rows: number }
+
+// Window Management
 { type: 'list-windows', sessionName: string }
+{ type: 'create-window', sessionName: string, windowName?: string }
 { type: 'select-window', sessionName: string, windowIndex: number }
+{ type: 'kill-window', sessionName: string, windowIndex: number }
+{ type: 'rename-window', sessionName: string, windowIndex: number, newName: string }
+
+// Audio Streaming
 { type: 'start-audio' }
 { type: 'stop-audio' }
 ```
 
 **Server → Client Messages:**
 ```javascript
-{ type: 'output', data: string }
+// Session Updates
+{ type: 'sessions-list', sessions: Session[] }
+{ type: 'session-created', session: Session }
+{ type: 'session-killed', sessionName: string }
+{ type: 'session-renamed', oldName: string, newName: string }
 { type: 'attached', sessionName: string }
 { type: 'disconnected' }
+
+// Terminal Output
+{ type: 'output', data: string }
+
+// Window Updates
 { type: 'windows-list', windows: Window[] }
+{ type: 'window-created', window: Window }
+{ type: 'window-selected', windowIndex: number }
+{ type: 'window-killed', windowIndex: number }
+{ type: 'window-renamed', windowIndex: number, newName: string }
+
+// Audio Streaming
 { type: 'audio-data', data: string }  // Base64 encoded audio
 { type: 'audio-status', streaming: boolean, error?: string }
+
+// Real-time Updates (from monitor)
+{ type: 'tmux-update', event: 'session-added' | 'session-removed' | 'window-added' | 'window-removed' }
 ```
 
 ## Troubleshooting
