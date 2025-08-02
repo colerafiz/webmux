@@ -115,7 +115,7 @@
       <!-- Mobile: Overlay sidebar -->
       <SessionList 
         v-show="!sidebarCollapsed || !isMobile"
-        :sessions="sessions" 
+        :sessions="sessions || []" 
         :currentSession="currentSession"
         :isCollapsed="sidebarCollapsed && !isMobile"
         :isMobile="isMobile"
@@ -152,7 +152,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useWebSocket } from './composables/useWebSocket'
-import { tmuxApi } from './api/tmux'
+import { websocketApi } from './api/websocket-api'
 import SessionList from './components/SessionList.vue'
 import TerminalView from './components/TerminalView.vue'
 import type { TmuxSession, SystemStats, SessionsListMessage, WindowSelectedMessage, TmuxWindow } from './types'
@@ -172,10 +172,7 @@ const searchInput = ref<HTMLInputElement>()
 const allWindows = ref<Array<{ sessionName: string, window: TmuxWindow }>>([])
 
 const stats = ref<SystemStats>({
-  activeSessions: 0,
-  totalSessions: 0,
   uptime: 0,
-  memoryUsage: 0,
   hostname: '',
   platform: '',
   arch: '',
@@ -189,7 +186,7 @@ const stats = ref<SystemStats>({
     total: 0,
     used: 0,
     free: 0,
-    percent: 0
+    percent: '0'
   }
 })
 
@@ -209,8 +206,7 @@ const filteredWindows = computed(() => {
 // Fetch system stats
 const fetchStats = async (): Promise<void> => {
   try {
-    const response = await fetch('/api/stats')
-    stats.value = await response.json() as SystemStats
+    stats.value = await websocketApi.getStats()
   } catch (error) {
     console.error('Failed to fetch stats:', error)
   }
@@ -282,22 +278,23 @@ const { data: sessions = [], refetch, isLoading } = useQuery({
   queryKey: ['sessions'],
   queryFn: async () => {
     console.log('Fetching sessions...')
-    const result = await tmuxApi.getSessions()
+    const result = await websocketApi.getSessions()
     console.log('Sessions fetched:', result)
     return result
   },
   refetchInterval: 60000, // Reduced to 60s as fallback since we have real-time updates
-  staleTime: 5000, // Cache for 5 seconds
-  cacheTime: 10000 // Keep in cache for 10 seconds
+  staleTime: 5000 // Cache for 5 seconds
 })
 
 // Update window list whenever sessions change
 const updateWindowList = async (): Promise<void> => {
   const windowList: Array<{ sessionName: string, window: TmuxWindow }> = []
   
-  for (const session of sessions.value) {
+  const sessionList = Array.isArray(sessions) ? sessions : sessions.value
+  if (sessionList) {
+    for (const session of sessionList) {
     try {
-      const windows = await tmuxApi.getWindows(session.name)
+      const windows = await websocketApi.getWindows(session.name)
       windows.forEach(window => {
         windowList.push({ sessionName: session.name, window })
       })
@@ -305,12 +302,13 @@ const updateWindowList = async (): Promise<void> => {
       console.error(`Failed to get windows for session ${session.name}:`, err)
     }
   }
+  }
   
   allWindows.value = windowList
 }
 
 // Watch sessions and update window list
-watch(() => sessions.value, () => {
+watch(() => Array.isArray(sessions) ? sessions : sessions.value, () => {
   updateWindowList()
 }, { immediate: true, deep: true })
 
@@ -329,7 +327,7 @@ const handleCreateSession = async (sessionName: string): Promise<void> => {
   queryClient.setQueryData<TmuxSession[]>(['sessions'], old => [...(old || []), optimisticSession])
   
   try {
-    const result = await tmuxApi.createSession(sessionName)
+    const result = await websocketApi.createSession(sessionName)
     
     if (result.success && result.sessionName) {
       // Select the new session
@@ -363,7 +361,7 @@ const handleCreateSession = async (sessionName: string): Promise<void> => {
 const handleKillSession = async (sessionName: string): Promise<void> => {
   console.log('App.vue handleKillSession called for:', sessionName)
   try {
-    await tmuxApi.killSession(sessionName)
+    await websocketApi.killSession(sessionName)
     console.log('Successfully killed session:', sessionName)
     
     // Clear current session if it's the one being killed
@@ -386,7 +384,7 @@ const handleKillSession = async (sessionName: string): Promise<void> => {
 
 const handleRenameSession = async (sessionName: string, newName: string): Promise<void> => {
   try {
-    await tmuxApi.renameSession(sessionName, newName)
+    await websocketApi.renameSession(sessionName, newName)
     
     // Update current session if it's the one being renamed
     if (currentSession.value === sessionName) {
@@ -468,7 +466,7 @@ const handleSearchBlur = (): void => {
 
 const selectFirstResult = (): void => {
   if (filteredWindows.value.length > 0) {
-    selectWindow(filteredWindows.value[0])
+    selectWindow(filteredWindows.value[0]!)
   }
 }
 

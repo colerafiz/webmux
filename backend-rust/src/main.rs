@@ -1,6 +1,6 @@
 use anyhow::Result;
 use axum::{
-    routing::{delete, get, post},
+    routing::get,
     Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
@@ -19,7 +19,6 @@ use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod error;
-mod handlers;
 mod tmux;
 mod types;
 mod websocket;
@@ -102,28 +101,6 @@ async fn main() -> Result<()> {
 
     // Build the router
     let app = Router::new()
-        // System stats
-        .route("/api/stats", get(handlers::get_stats))
-        // Session management
-        .route("/api/sessions", get(handlers::list_sessions))
-        .route("/api/sessions", post(handlers::create_session))
-        .route("/api/sessions/:name/kill", post(handlers::kill_session))
-        .route("/api/sessions/:name/rename", post(handlers::rename_session))
-        // Window management
-        .route("/api/sessions/:name/windows", get(handlers::list_windows))
-        .route("/api/sessions/:name/windows", post(handlers::create_window))
-        .route(
-            "/api/sessions/:session_name/windows/:window_index",
-            delete(handlers::kill_window),
-        )
-        .route(
-            "/api/sessions/:session_name/windows/:window_index/rename",
-            post(handlers::rename_window),
-        )
-        .route(
-            "/api/sessions/:session_name/windows/:window_index/select",
-            post(handlers::select_window),
-        )
         // WebSocket endpoint
         .route("/ws", get(websocket::ws_handler))
         // Serve static files (Vue app)

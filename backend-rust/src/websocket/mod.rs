@@ -27,6 +27,7 @@ use crate::{
     terminal_buffer::TerminalRingBuffer,
     AppState,
 };
+use sysinfo::System;
 
 type ClientId = String;
 
@@ -228,10 +229,24 @@ async fn handle_message(
             }
         }
         
-        WebSocketMessage::ListWindows { session_name: _ } => {
-            // This message type isn't used anymore - frontend uses REST API
-            // Keeping for backwards compatibility but doing nothing
-            debug!("Received ListWindows message, but using REST API instead");
+        WebSocketMessage::ListWindows { session_name } => {
+            debug!("Listing windows for session: {}", session_name);
+            match tmux::list_windows(&session_name).await {
+                Ok(windows) => {
+                    let response = ServerMessage::WindowsList { 
+                        session_name: session_name.clone(),
+                        windows 
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+                Err(e) => {
+                    error!("Failed to list windows for session {}: {}", session_name, e);
+                    let response = ServerMessage::Error {
+                        message: format!("Failed to list windows: {}", e),
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+            }
         }
         
         WebSocketMessage::SelectWindow { session_name, window_index } => {
@@ -293,6 +308,178 @@ async fn handle_message(
                     state.audio_tx = None;
                 }
             }
+        }
+        
+        // Session management
+        WebSocketMessage::CreateSession { name } => {
+            let session_name = name.unwrap_or_else(|| format!("session-{}", chrono::Utc::now().timestamp_millis()));
+            info!("Creating session: {}", session_name);
+            
+            match tmux::create_session(&session_name).await {
+                Ok(_) => {
+                    info!("Successfully created session: {}", session_name);
+                    let response = ServerMessage::SessionCreated {
+                        success: true,
+                        session_name: Some(session_name),
+                        error: None,
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+                Err(e) => {
+                    error!("Failed to create session: {}", e);
+                    let response = ServerMessage::SessionCreated {
+                        success: false,
+                        session_name: None,
+                        error: Some(format!("Failed to create session: {}", e)),
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+            }
+        }
+        
+        WebSocketMessage::KillSession { session_name } => {
+            info!("Kill session request for: {}", session_name);
+            
+            match tmux::kill_session(&session_name).await {
+                Ok(_) => {
+                    info!("Successfully killed session: {}", session_name);
+                    let response = ServerMessage::SessionKilled {
+                        success: true,
+                        error: None,
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+                Err(e) => {
+                    error!("Failed to kill session: {}", e);
+                    let response = ServerMessage::SessionKilled {
+                        success: false,
+                        error: Some(format!("Failed to kill session: {}", e)),
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+            }
+        }
+        
+        WebSocketMessage::RenameSession { session_name, new_name } => {
+            if new_name.trim().is_empty() {
+                let response = ServerMessage::SessionRenamed {
+                    success: false,
+                    error: Some("Session name cannot be empty".to_string()),
+                };
+                send_message(&state.message_tx, response).await?;
+            } else {
+                match tmux::rename_session(&session_name, &new_name).await {
+                    Ok(_) => {
+                        let response = ServerMessage::SessionRenamed {
+                            success: true,
+                            error: None,
+                        };
+                        send_message(&state.message_tx, response).await?;
+                    }
+                    Err(e) => {
+                        let response = ServerMessage::SessionRenamed {
+                            success: false,
+                            error: Some(format!("Failed to rename session: {}", e)),
+                        };
+                        send_message(&state.message_tx, response).await?;
+                    }
+                }
+            }
+        }
+        
+        // Window management
+        WebSocketMessage::CreateWindow { session_name, window_name } => {
+            match tmux::create_window(&session_name, window_name.as_deref()).await {
+                Ok(_) => {
+                    let response = ServerMessage::WindowCreated {
+                        success: true,
+                        error: None,
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+                Err(e) => {
+                    let response = ServerMessage::WindowCreated {
+                        success: false,
+                        error: Some(format!("Failed to create window: {}", e)),
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+            }
+        }
+        
+        WebSocketMessage::KillWindow { session_name, window_index } => {
+            match tmux::kill_window(&session_name, &window_index).await {
+                Ok(_) => {
+                    let response = ServerMessage::WindowKilled {
+                        success: true,
+                        error: None,
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+                Err(e) => {
+                    let response = ServerMessage::WindowKilled {
+                        success: false,
+                        error: Some(format!("Failed to kill window: {}", e)),
+                    };
+                    send_message(&state.message_tx, response).await?;
+                }
+            }
+        }
+        
+        WebSocketMessage::RenameWindow { session_name, window_index, new_name } => {
+            if new_name.trim().is_empty() {
+                let response = ServerMessage::WindowRenamed {
+                    success: false,
+                    error: Some("Window name cannot be empty".to_string()),
+                };
+                send_message(&state.message_tx, response).await?;
+            } else {
+                match tmux::rename_window(&session_name, &window_index, &new_name).await {
+                    Ok(_) => {
+                        let response = ServerMessage::WindowRenamed {
+                            success: true,
+                            error: None,
+                        };
+                        send_message(&state.message_tx, response).await?;
+                    }
+                    Err(e) => {
+                        let response = ServerMessage::WindowRenamed {
+                            success: false,
+                            error: Some(format!("Failed to rename window: {}", e)),
+                        };
+                        send_message(&state.message_tx, response).await?;
+                    }
+                }
+            }
+        }
+        
+        // System stats
+        WebSocketMessage::GetStats => {
+            let mut sys = System::new_all();
+            sys.refresh_all();
+
+            let load_avg = System::load_average();
+            let stats = SystemStats {
+                cpu: CpuInfo {
+                    cores: sys.cpus().len(),
+                    model: sys.cpus().first().map(|c| c.brand().to_string()).unwrap_or_default(),
+                    usage: load_avg.one as f32,
+                    load_avg: [load_avg.one as f32, load_avg.five as f32, load_avg.fifteen as f32],
+                },
+                memory: MemoryInfo {
+                    total: sys.total_memory(),
+                    used: sys.used_memory(),
+                    free: sys.available_memory(),
+                    percent: format!("{:.1}", (sys.used_memory() as f64 / sys.total_memory() as f64) * 100.0),
+                },
+                uptime: System::uptime(),
+                hostname: System::host_name().unwrap_or_default(),
+                platform: std::env::consts::OS.to_string(),
+                arch: std::env::consts::ARCH.to_string(),
+            };
+
+            let response = ServerMessage::Stats { stats };
+            send_message(&state.message_tx, response).await?;
         }
     }
     

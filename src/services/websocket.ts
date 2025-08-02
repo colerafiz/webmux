@@ -1,12 +1,14 @@
 import type { WsMessage } from '@/types'
 
 type MessageHandler<T = any> = (data: T) => void
+type DisconnectHandler = () => void
 
 // Singleton WebSocket manager to ensure single connection
 class WebSocketManager {
   private ws: WebSocket | null = null
   public isConnected: boolean = false
   private messageHandlers: Map<string, MessageHandler[]> = new Map()
+  private disconnectHandlers: DisconnectHandler[] = []
   private connectionPromise: Promise<void> | null = null
   private pingInterval: number | null = null
   private reconnectAttempts: number = 0
@@ -79,6 +81,9 @@ class WebSocketManager {
         this.ws = null
         this.connectionPromise = null
         this.stopPing()
+        
+        // Notify disconnect handlers
+        this.disconnectHandlers.forEach(handler => handler())
         
         // Only reconnect if we haven't exceeded max attempts
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -167,6 +172,17 @@ class WebSocketManager {
       return Promise.resolve()
     }
     return this.connect()
+  }
+  
+  onDisconnect(handler: DisconnectHandler): void {
+    this.disconnectHandlers.push(handler)
+  }
+  
+  offDisconnect(handler: DisconnectHandler): void {
+    const index = this.disconnectHandlers.indexOf(handler)
+    if (index > -1) {
+      this.disconnectHandlers.splice(index, 1)
+    }
   }
 }
 

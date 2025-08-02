@@ -171,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, reactive } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -192,6 +192,12 @@ let fitAddon: FitAddon | null = null
 const terminalSize = ref<TerminalSize>({ cols: 80, rows: 24 })
 const ctrlPressed = ref<boolean>(false)
 const isMobile = computed(() => window.innerWidth < 768)
+
+// Declare cleanup at module level so it's accessible in onUnmounted
+const cleanup = reactive({
+  pendingWrites: [] as string[],
+  rafId: null as number | null
+})
 
 onMounted(() => {
   terminal = new Terminal({
@@ -262,7 +268,7 @@ onMounted(() => {
 
     // Auto-copy selected text to clipboard
     terminal.onSelectionChange(() => {
-      const selection = terminal.getSelection()
+      const selection = terminal?.getSelection()
       if (selection) {
         navigator.clipboard.writeText(selection).catch(err => {
           console.error('Failed to copy to clipboard:', err)
@@ -298,13 +304,10 @@ onMounted(() => {
   }
 
   // Simple batching approach with requestAnimationFrame
-  let pendingWrites: string[] = []
-  let rafId: number | null = null
-  
   const flushWrites = () => {
-    if (pendingWrites.length > 0 && terminal) {
-      const data = pendingWrites.join('')
-      pendingWrites = []
+    if (cleanup.pendingWrites.length > 0 && terminal) {
+      const data = cleanup.pendingWrites.join('')
+      cleanup.pendingWrites = []
       
       try {
         // Write all pending data at once
@@ -313,17 +316,17 @@ onMounted(() => {
         console.error('Terminal write error:', err)
       }
     }
-    rafId = null
+    cleanup.rafId = null
   }
   
   // WebSocket message handler with RAF batching
   props.ws.onMessage<OutputMessage>('output', (data) => {
     if (terminal && data.data) {
-      pendingWrites.push(data.data)
+      cleanup.pendingWrites.push(data.data)
       
       // Schedule flush if not already scheduled
-      if (!rafId) {
-        rafId = requestAnimationFrame(flushWrites)
+      if (!cleanup.rafId) {
+        cleanup.rafId = requestAnimationFrame(flushWrites)
       }
     }
   })
@@ -360,11 +363,11 @@ onMounted(() => {
 
 onUnmounted(() => {
   // Cancel any pending animation frame
-  if (rafId) {
-    cancelAnimationFrame(rafId)
-    rafId = null
+  if (cleanup.rafId) {
+    cancelAnimationFrame(cleanup.rafId)
+    cleanup.rafId = null
   }
-  pendingWrites = []
+  cleanup.pendingWrites = []
   
   if (terminal) {
     terminal.dispose()
