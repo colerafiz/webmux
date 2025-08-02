@@ -55,6 +55,7 @@
                     <button
                       v-for="(item, index) in filteredWindows"
                       :key="`${item.sessionName}-${item.window.index}`"
+                      v-memo="[item.window.name, item.sessionName, selectedIndex === index]"
                       @mousedown.prevent="selectWindow(item)"
                       @mouseenter="selectedIndex = index"
                       class="w-full px-3 py-2 text-left hover-bg transition-colors text-xs"
@@ -121,7 +122,6 @@
         :isMobile="isMobile"
         :isLoading="isLoading"
         @select="selectSession"
-        @refresh="refetch"
         @create="handleCreateSession"
         @kill="handleKillSession"
         @rename="handleRenameSession"
@@ -170,6 +170,7 @@ const showSearchResults = ref(false)
 const selectedIndex = ref(0)
 const searchInput = ref<HTMLInputElement>()
 const allWindows = ref<Array<{ sessionName: string, window: TmuxWindow }>>([])
+let searchDebounceTimeout: ReturnType<typeof setTimeout> | null = null
 
 const stats = ref<SystemStats>({
   uptime: 0,
@@ -193,10 +194,21 @@ const stats = ref<SystemStats>({
 // Mobile detection
 const isMobile = computed(() => windowWidth.value < 768) // md breakpoint
 
-// Computed property for filtered windows
+// Debounced search query
+const debouncedSearchQuery = ref('')
+
+// Watch search query and debounce it
+watch(searchQuery, (newQuery) => {
+  if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout)
+  searchDebounceTimeout = setTimeout(() => {
+    debouncedSearchQuery.value = newQuery
+  }, 150)
+})
+
+// Computed property for filtered windows using debounced query
 const filteredWindows = computed(() => {
-  if (!searchQuery.value.trim()) return []
-  const query = searchQuery.value.toLowerCase()
+  if (!debouncedSearchQuery.value.trim()) return []
+  const query = debouncedSearchQuery.value.toLowerCase()
   return allWindows.value.filter(item => 
     item.window.name.toLowerCase().includes(query) ||
     item.sessionName.toLowerCase().includes(query)
@@ -215,6 +227,7 @@ const fetchStats = async (): Promise<void> => {
 
 // Update clock and stats
 let updateInterval: ReturnType<typeof setInterval> | undefined
+let statsInterval: ReturnType<typeof setInterval> | undefined
 let handleKeydown: ((e: KeyboardEvent) => void) | undefined
 let handleResize: (() => void) | undefined
 
@@ -223,6 +236,7 @@ onMounted(() => {
   sidebarCollapsed.value = isMobile.value
   
   fetchStats()
+  // Update time every second
   updateInterval = setInterval(() => {
     currentTime.value = new Date().toLocaleTimeString('en-US', { 
       hour12: false,
@@ -230,8 +244,12 @@ onMounted(() => {
       minute: '2-digit',
       second: '2-digit'
     })
-    fetchStats()
   }, 1000)
+  
+  // Update stats less frequently for better performance
+  statsInterval = setInterval(() => {
+    fetchStats()
+  }, 5000)
   
   // Add keyboard shortcut for search (Cmd/Ctrl + K)
   handleKeydown = (e: KeyboardEvent) => {
@@ -252,6 +270,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (updateInterval) clearInterval(updateInterval)
+  if (statsInterval) clearInterval(statsInterval)
+  if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout)
   if (handleKeydown) window.removeEventListener('keydown', handleKeydown)
   if (handleResize) window.removeEventListener('resize', handleResize)
 })
@@ -274,7 +294,7 @@ const formatUptime = (seconds: number): string => {
   return `${minutes}m`
 }
 
-const { data: sessions = [], refetch, isLoading } = useQuery({
+const { data: sessions = [], isLoading } = useQuery({
   queryKey: ['sessions'],
   queryFn: async () => {
     console.log('Fetching sessions...')
@@ -318,7 +338,7 @@ const handleCreateSession = async (sessionName: string): Promise<void> => {
   const optimisticSession: TmuxSession = {
     name: sessionName,
     attached: false,
-    created: new Date().toISOString() as any,
+    created: new Date().toISOString(),
     windows: 1,
     dimensions: '80x24'
   }
@@ -340,7 +360,7 @@ const handleCreateSession = async (sessionName: string): Promise<void> => {
       
       // Real update will come through WebSocket
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to create session:', error)
     // Revert optimistic update
     queryClient.setQueryData<TmuxSession[]>(['sessions'], old => 
@@ -348,9 +368,7 @@ const handleCreateSession = async (sessionName: string): Promise<void> => {
     )
     
     let errorMessage = 'Failed to create session.'
-    if (error?.response?.data?.error) {
-      errorMessage = error.response.data.error
-    } else if (error?.message) {
+    if (error instanceof Error) {
       errorMessage += ' ' + error.message
     }
     
@@ -369,14 +387,7 @@ const handleKillSession = async (sessionName: string): Promise<void> => {
       currentSession.value = null
     }
     
-    // Invalidate and refetch sessions immediately
-    await queryClient.invalidateQueries({ queryKey: ['sessions'] })
-    await refetch()
-    
-    // Force a second refresh after a short delay to catch any async tmux updates
-    setTimeout(async () => {
-      await queryClient.invalidateQueries({ queryKey: ['sessions'] })
-    }, 500)
+    // WebSocket will handle updating the sessions list
   } catch (error) {
     console.error('Failed to kill session:', error)
   }
@@ -391,8 +402,7 @@ const handleRenameSession = async (sessionName: string, newName: string): Promis
       currentSession.value = newName
     }
     
-    // Immediately refetch sessions
-    await refetch()
+    // WebSocket will handle updating the sessions list
   } catch (error) {
     console.error('Failed to rename session:', error)
     alert('Failed to rename session. The name may already be in use.')
@@ -427,8 +437,6 @@ ws.onMessage<SessionsListMessage>('sessions-list', (data) => {
 ws.onMessage<WindowSelectedMessage>('window-selected', (data) => {
   if (data.success) {
     console.log('Window selected successfully:', data.windowIndex)
-    // Trigger a refresh of the sessions list to update window states
-    refetch()
     // Also trigger window refresh
     windowRefreshTrigger.value++
   } else {

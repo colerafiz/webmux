@@ -75,3 +75,8 @@ futures = "0.3"
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "performance"
+harness = false
