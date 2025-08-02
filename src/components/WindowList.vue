@@ -136,9 +136,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch, onUnmounted } from 'vue'
-import { tmuxApi } from '@/api/tmux'
+import { websocketApi } from '@/api/websocket-api'
 import { useWebSocket } from '@/composables/useWebSocket'
-import type { TmuxWindow, WindowSelectedMessage } from '@/types'
+import type { TmuxWindow, WindowSelectedMessage, WindowsListMessage } from '@/types'
 
 interface Props {
   sessionName: string
@@ -186,7 +186,7 @@ const loadWindows = async (showLoading: boolean = true): Promise<void> => {
       loading.value = true
     }
     error.value = false
-    const loadedWindows = await tmuxApi.getWindows(props.sessionName)
+    const loadedWindows = await websocketApi.getWindows(props.sessionName)
     
     // Only update if we're still showing the same session
     if (props.sessionName === loadingForSession) {
@@ -200,15 +200,8 @@ const loadWindows = async (showLoading: boolean = true): Promise<void> => {
     if (props.sessionName === loadingForSession) {
       error.value = true
       console.error('Failed to load windows for session:', props.sessionName, err)
-      // If it's a 404, the session might not exist yet
-      if (err?.response?.status === 404) {
-        // Retry after a short delay
-        setTimeout(() => {
-          if (props.sessionName === loadingForSession) {
-            loadWindows()
-          }
-        }, 500)
-      }
+      // If the session doesn't exist or there's an error, clear the windows
+      windows.value = []
     }
   } finally {
     if (props.sessionName === loadingForSession) {
@@ -241,7 +234,7 @@ const confirmCreateWindow = async (): Promise<void> => {
   newWindowName.value = ''
   
   try {
-    await tmuxApi.createWindow(props.sessionName, savedName || undefined)
+    await websocketApi.createWindow(props.sessionName, savedName || undefined)
     // Real update will come through WebSocket
     emit('refresh')
   } catch (err) {
@@ -274,7 +267,7 @@ const confirmDelete = async (): Promise<void> => {
   windowToDelete.value = null
   
   try {
-    await tmuxApi.killWindow(props.sessionName, windowToRemove.index)
+    await websocketApi.killWindow(props.sessionName, windowToRemove.index)
     // Real update will come through WebSocket
     emit('refresh')
   } catch (err) {
@@ -306,7 +299,7 @@ const startEdit = (window: TmuxWindow): void => {
 const confirmRename = async (window: TmuxWindow): Promise<void> => {
   if (editingName.value && editingName.value !== window.name) {
     try {
-      await tmuxApi.renameWindow(props.sessionName, window.index, editingName.value)
+      await websocketApi.renameWindow(props.sessionName, window.index, editingName.value)
       await loadWindows(false) // Don't show loading for rename
     } catch (err) {
       console.error('Failed to rename window:', err)
@@ -339,21 +332,55 @@ onMounted(() => {
       }, 100)
     }
   })
+  
+  // Listen for windows-list broadcasts but only update if it's for our session
+  ws.onMessage<WindowsListMessage>('windows-list', (data) => {
+    if (data.sessionName === props.sessionName) {
+      console.log('Received window list update for our session:', props.sessionName)
+      windows.value = data.windows
+      error.value = false
+      loading.value = false
+    } else {
+      console.log('Ignoring window list for different session:', data.sessionName, 'we are viewing:', props.sessionName)
+    }
+  })
 })
 
 onUnmounted(() => {
-  // Clean up WebSocket listener
+  // Clean up WebSocket listeners
   ws.offMessage('window-selected')
+  ws.offMessage('windows-list')
+  
+  // Clear any pending session change timeout
+  if (sessionChangeTimeout) {
+    clearTimeout(sessionChangeTimeout)
+    sessionChangeTimeout = null
+  }
 })
+
+// Add a debounced session watcher to prevent rapid switching issues
+let sessionChangeTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Watch for session name changes and reload windows
 watch(() => props.sessionName, (newSessionName, oldSessionName) => {
   if (newSessionName !== oldSessionName) {
     console.log('Session changed from', oldSessionName, 'to', newSessionName, '- reloading windows')
-    // Reset the initial load flag for new session
+    
+    // Cancel any pending load
+    if (sessionChangeTimeout) {
+      clearTimeout(sessionChangeTimeout)
+    }
+    
+    // Reset state immediately
     hasLoadedInitial = false
     windows.value = [] // Clear immediately to prevent showing stale data
-    loadWindows()
+    error.value = false
+    loading.value = true
+    
+    // Debounce the actual load to prevent rapid switches
+    sessionChangeTimeout = setTimeout(() => {
+      loadWindows()
+    }, 100)
   }
 })
 

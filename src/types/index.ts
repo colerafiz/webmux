@@ -50,6 +50,7 @@ export interface DisconnectedMessage extends WsMessage {
 
 export interface WindowsListMessage extends WsMessage {
   type: 'windows-list';
+  sessionName: string;
   windows: TmuxWindow[];
 }
 
@@ -135,11 +136,11 @@ export interface AudioStatusMessage extends WsMessage {
 export interface SessionCreateResponse {
   success: boolean;
   sessionName: string;
-  error?: string;
+  message?: string;
 }
 export interface SessionActionResponse {
   success: boolean;
-  error?: string;
+  message?: string;
 }
 export interface WindowsListResponse {
   windows: TmuxWindow[];
@@ -147,5 +148,5 @@ export interface WindowsListResponse {
 export interface WindowCreateResponse {
   success: boolean;
   window?: TmuxWindow;
-  error?: string;
+  message?: string;
 }

@@ -99,15 +99,9 @@ impl TmuxMonitor {
                 error!("Failed to broadcast session update: {}", e);
             }
 
-            // Broadcast window updates for each session that changed
-            for (session_name, (_window_count, _pane_count)) in &current_window_pane_counts {
-                if let Ok(windows) = tmux::list_windows(session_name).await {
-                    let window_message = ServerMessage::WindowsList { windows };
-                    if let Err(e) = self.broadcast_tx.send(window_message) {
-                        error!("Failed to broadcast window update for session {}: {}", session_name, e);
-                    }
-                }
-            }
+            // Don't broadcast window updates - let clients request them per session
+            // This prevents sessions from getting mixed up when multiple clients
+            // are viewing different sessions
         }
     }
 }

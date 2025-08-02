@@ -44,7 +44,7 @@ pub struct RenameWindowRequest {
     pub new_name: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemStats {
     pub cpu: CpuInfo,
@@ -55,7 +55,7 @@ pub struct SystemStats {
     pub arch: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CpuInfo {
     pub cores: usize,
@@ -64,7 +64,7 @@ pub struct CpuInfo {
     pub load_avg: [f32; 3],
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MemoryInfo {
     pub total: u64,
@@ -104,6 +104,43 @@ pub enum WebSocketMessage {
     AudioControl {
         action: AudioAction,
     },
+    // Session management
+    CreateSession {
+        name: Option<String>,
+    },
+    KillSession {
+        #[serde(rename = "sessionName")]
+        session_name: String,
+    },
+    RenameSession {
+        #[serde(rename = "sessionName")]
+        session_name: String,
+        #[serde(rename = "newName")]
+        new_name: String,
+    },
+    // Window management
+    CreateWindow {
+        #[serde(rename = "sessionName")]
+        session_name: String,
+        #[serde(rename = "windowName")]
+        window_name: Option<String>,
+    },
+    KillWindow {
+        #[serde(rename = "sessionName")]
+        session_name: String,
+        #[serde(rename = "windowIndex")]
+        window_index: String,
+    },
+    RenameWindow {
+        #[serde(rename = "sessionName")]
+        session_name: String,
+        #[serde(rename = "windowIndex")]
+        window_index: String,
+        #[serde(rename = "newName")]
+        new_name: String,
+    },
+    // System stats
+    GetStats,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,6 +165,8 @@ pub enum ServerMessage {
     },
     Disconnected,
     WindowsList {
+        #[serde(rename = "sessionName")]
+        session_name: String,
         windows: Vec<TmuxWindow>,
     },
     WindowSelected {
@@ -145,6 +184,48 @@ pub enum ServerMessage {
     },
     AudioStream {
         data: String, // base64 encoded audio data
+    },
+    // Session management responses
+    SessionCreated {
+        success: bool,
+        #[serde(rename = "sessionName", skip_serializing_if = "Option::is_none")]
+        session_name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    SessionKilled {
+        success: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    SessionRenamed {
+        success: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    // Window management responses
+    WindowCreated {
+        success: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    WindowKilled {
+        success: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    WindowRenamed {
+        success: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    // System stats response
+    Stats {
+        stats: SystemStats,
+    },
+    // Generic error response
+    Error {
+        message: String,
     },
 }
 

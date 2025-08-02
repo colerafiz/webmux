@@ -151,7 +151,6 @@
 import { ref, nextTick } from 'vue'
 import SessionItem from './SessionItem.vue'
 import AudioControl from './AudioControl.vue'
-import { tmuxApi } from '@/api/tmux'
 import type { TmuxSession, TmuxWindow } from '@/types'
 
 interface Props {
