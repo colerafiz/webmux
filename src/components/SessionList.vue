@@ -74,18 +74,6 @@
           Sessions ({{ sessions.length }})
         </h2>
         
-        <div class="flex items-center space-x-1">
-          <button
-            @click="$emit('refresh')"
-            class="p-1 hover-bg rounded text-xs"
-            style="color: var(--text-tertiary)"
-            :title="isCollapsed ? 'Refresh Sessions' : 'Refresh'"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
       </div>
       
       <button
@@ -129,6 +117,7 @@
         <SessionItem
           v-for="session in sessions"
           :key="session.name"
+          v-memo="[session.name, session.windows, currentSession === session.name, isCollapsed && !isMobile]"
           :session="session"
           :isActive="currentSession === session.name"
           :isCollapsed="isCollapsed && !isMobile"
@@ -137,20 +126,15 @@
           @kill="handleKill(session.name)"
           @rename="(newName) => emit('rename', session.name, newName)"
           @select-window="(window) => $emit('select-window', session.name, window)"
-          @refresh="$emit('refresh')"
         />
       </div>
     </div>
-    
-    <!-- Audio control at bottom of sidebar -->
-    <AudioControl :isCollapsed="isCollapsed && !isMobile" />
   </aside>
 </template>
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import SessionItem from './SessionItem.vue'
-import AudioControl from './AudioControl.vue'
 import type { TmuxSession, TmuxWindow } from '@/types'
 
 interface Props {
@@ -171,7 +155,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   select: [sessionName: string]
-  refresh: []
   kill: [sessionName: string]
   rename: [sessionName: string, newName: string]
   create: [sessionName: string]

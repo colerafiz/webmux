@@ -1,6 +1,6 @@
 import type { WsMessage } from '@/types'
 
-type MessageHandler<T = any> = (data: T) => void
+type MessageHandler<T extends WsMessage = WsMessage> = (data: T) => void
 type DisconnectHandler = () => void
 
 // Singleton WebSocket manager to ensure single connection
@@ -116,14 +116,14 @@ class WebSocketManager {
     }
   }
 
-  onMessage<T = any>(type: string, handler: MessageHandler<T>): void {
+  onMessage<T extends WsMessage = WsMessage>(type: string, handler: MessageHandler<T>): void {
     if (!this.messageHandlers.has(type)) {
       this.messageHandlers.set(type, [])
     }
-    this.messageHandlers.get(type)!.push(handler)
+    this.messageHandlers.get(type)!.push(handler as MessageHandler)
   }
 
-  offMessage<T = any>(type: string, handler?: MessageHandler<T>): void {
+  offMessage<T extends WsMessage = WsMessage>(type: string, handler?: MessageHandler<T>): void {
     if (!handler) {
       // Remove all handlers for this type
       this.messageHandlers.delete(type)
@@ -132,7 +132,7 @@ class WebSocketManager {
     
     if (this.messageHandlers.has(type)) {
       const handlers = this.messageHandlers.get(type)!
-      const index = handlers.indexOf(handler)
+      const index = handlers.indexOf(handler as MessageHandler)
       if (index > -1) {
         handlers.splice(index, 1)
       }

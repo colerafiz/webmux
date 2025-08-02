@@ -2,12 +2,12 @@ import { onMounted, onUnmounted, computed, ComputedRef } from 'vue'
 import { wsManager } from '@/services/websocket'
 import type { WsMessage } from '@/types'
 
-type MessageHandler<T = any> = (data: T) => void
+type MessageHandler<T extends WsMessage = WsMessage> = (data: T) => void
 
 export interface UseWebSocketReturn {
   isConnected: ComputedRef<boolean>
   send: (data: WsMessage) => void
-  onMessage: <T = any>(type: string, handler: MessageHandler<T>) => void
+  onMessage: <T extends WsMessage = WsMessage>(type: string, handler: MessageHandler<T>) => void
   offMessage: (type: string) => void
   ensureConnected: () => Promise<void>
 }
@@ -20,9 +20,9 @@ export function useWebSocket(): UseWebSocketReturn {
     wsManager.send(data)
   }
 
-  const onMessage = <T = any>(type: string, handler: MessageHandler<T>): void => {
-    messageHandlers.set(type, handler)
-    wsManager.onMessage(type, handler)
+  const onMessage = <T extends WsMessage = WsMessage>(type: string, handler: MessageHandler<T>): void => {
+    messageHandlers.set(type, handler as MessageHandler)
+    wsManager.onMessage(type, handler as MessageHandler)
   }
 
   const offMessage = (type: string): void => {
