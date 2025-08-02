@@ -27,6 +27,7 @@ mod monitor;
 mod terminal_buffer;
 mod tmux_control;
 mod terminal_delta;
+mod buffer;
 
 // Global flag for audio logging
 pub static ENABLE_AUDIO_LOGS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -42,12 +43,14 @@ struct Args {
 
 use tokio::sync::mpsc;
 use crate::types::ServerMessage;
+use crate::websocket::optimized::OptimizedClientManager;
 
 #[derive(Clone)]
 pub struct AppState {
     pub enable_audio_logs: bool,
     pub broadcast_tx: mpsc::UnboundedSender<ServerMessage>,
     pub client_manager: Arc<websocket::ClientManager>,
+    pub optimized_client_manager: Arc<OptimizedClientManager>,
 }
 
 #[tokio::main]
@@ -87,6 +90,7 @@ async fn main() -> Result<()> {
         enable_audio_logs: args.audio,
         broadcast_tx: broadcast_tx.clone(),
         client_manager,
+        optimized_client_manager: Arc::new(OptimizedClientManager::new()),
     };
     
     // Start tmux monitor
@@ -101,8 +105,9 @@ async fn main() -> Result<()> {
 
     // Build the router
     let app = Router::new()
-        // WebSocket endpoint
+        // WebSocket endpoints
         .route("/ws", get(websocket::ws_handler))
+        .route("/ws/optimized", get(websocket::optimized::optimized_ws_handler))
         // Serve static files (Vue app)
         .fallback_service(serve_dir)
         // Add CORS
