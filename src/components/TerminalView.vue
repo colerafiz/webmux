@@ -165,6 +165,11 @@
       @click="focusTerminal"
       @touchstart="handleTouchStart"
       @touchend="handleTouchEnd"
+      @dragover.prevent="handleDragOver"
+      @drop.prevent="handleDrop"
+      @dragenter.prevent="isDragging = true"
+      @dragleave.prevent="handleDragLeave"
+      :class="{ 'drag-over': isDragging }"
     ></div>
   </div>
   </div>
@@ -191,6 +196,8 @@ const fitAddon = shallowRef<FitAddon | null>(null)
 const terminalSize = ref<TerminalSize>({ cols: 80, rows: 24 })
 const ctrlPressed = ref<boolean>(false)
 const isMobile = computed(() => window.innerWidth < 768)
+const isDragging = ref<boolean>(false)
+let dragCounter = 0
 
 // Performance optimization: Output buffering
 const outputBuffer = {
@@ -294,6 +301,9 @@ onMounted(() => {
       return true
     })
   }
+
+  // Add paste event listener to handle image pastes
+  window.addEventListener('paste', handlePaste)
 
   if (terminal.value) {
     terminal.value.onResize((size) => {
@@ -400,6 +410,7 @@ onUnmounted(() => {
   props.ws.offMessage('disconnected')
   props.ws.offMessage('attached')
   window.removeEventListener('resize', debouncedResize)
+  window.removeEventListener('paste', handlePaste)
   if (resizeTimeout) clearTimeout(resizeTimeout)
 })
 
@@ -624,10 +635,181 @@ const pasteFromClipboard = async (): Promise<void> => {
     }
   }
 }
+
+// Drag and drop handlers
+const handleDragOver = (e: DragEvent): void => {
+  // Prevent default to allow drop
+  e.preventDefault()
+  // Add visual feedback
+  isDragging.value = true
+}
+
+const handleDragLeave = (e: DragEvent): void => {
+  // Handle nested elements by tracking enter/leave count
+  if (e.target === terminalContainer.value) {
+    dragCounter--
+    if (dragCounter === 0) {
+      isDragging.value = false
+    }
+  }
+}
+
+const handleDrop = async (e: DragEvent): Promise<void> => {
+  e.preventDefault()
+  isDragging.value = false
+  dragCounter = 0
+  
+  const files = Array.from(e.dataTransfer?.files || [])
+  
+  for (const file of files) {
+    if (file.type.startsWith('image/')) {
+      await handleImageFile(file)
+    }
+  }
+}
+
+const handlePaste = async (e: ClipboardEvent): Promise<void> => {
+  // Check if terminal has focus
+  if (!terminal.value || document.activeElement !== terminalContainer.value) return
+  
+  e.preventDefault()
+  
+  // Check for image data
+  const items = Array.from(e.clipboardData?.items || [])
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) {
+        await handleImageFile(file)
+      }
+      return
+    }
+  }
+  
+  // Fallback to text paste
+  const text = e.clipboardData?.getData('text/plain')
+  if (text && props.ws.isConnected.value) {
+    const message: InputMessage = {
+      type: 'input',
+      data: text.replace(/\n/g, '\\\n')
+    }
+    props.ws.send(message)
+  }
+}
+
+// Image handling
+const handleImageFile = async (file: File): Promise<void> => {
+  console.log('Handling image file:', file.name, file.type, file.size)
+  
+  // Check file size (10MB limit)
+  if (file.size > 10 * 1024 * 1024) {
+    console.error('Image file too large (max 10MB):', file.size)
+    showToast(`Image "${file.name}" is too large (max 10MB)`, 'error')
+    return
+  }
+  
+  try {
+    // Convert to base64
+    const base64 = await fileToBase64(file)
+    
+    // Send using iTerm2 OSC 1337 protocol
+    const sequence = buildOSC1337Sequence(base64, file.name)
+    
+    if (props.ws.isConnected.value) {
+      const message: InputMessage = {
+        type: 'input',
+        data: sequence
+      }
+      props.ws.send(message)
+      showToast(`Image "${file.name}" sent to terminal`, 'success')
+    }
+  } catch (err) {
+    console.error('Failed to process image:', err)
+    showToast(`Failed to process image "${file.name}"`, 'error')
+  }
+}
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      // Remove data URL prefix to get pure base64
+      const base64 = result.split(',')[1]
+      if (base64) {
+        resolve(base64)
+      } else {
+        reject(new Error('Failed to extract base64 from data URL'))
+      }
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+const buildOSC1337Sequence = (base64: string, filename: string): string => {
+  // iTerm2 inline image protocol
+  // ESC ] 1337 ; File = name={filename};size={size};inline=1:{base64} ^G
+  const encodedName = btoa(filename)
+  const args = `name=${encodedName};size=${base64.length};inline=1`
+  return `\x1b]1337;File=${args}:${base64}\x07`
+}
+
+// Simple toast notification
+const showToast = (message: string, type: 'success' | 'error'): void => {
+  // Create toast element
+  const toast = document.createElement('div')
+  toast.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white text-sm z-50 transition-opacity duration-300 ${
+    type === 'success' ? 'bg-green-600' : 'bg-red-600'
+  }`
+  toast.textContent = message
+  toast.style.opacity = '0'
+  
+  document.body.appendChild(toast)
+  
+  // Fade in
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1'
+  })
+  
+  // Remove after 3 seconds
+  setTimeout(() => {
+    toast.style.opacity = '0'
+    setTimeout(() => {
+      document.body.removeChild(toast)
+    }, 300)
+  }, 3000)
+}
 </script>
 
 <style scoped>
 .hover-bg:hover {
   filter: brightness(1.2);
+}
+
+.drag-over {
+  position: relative;
+}
+
+.drag-over::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px dashed #3b82f6;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.drag-over::after {
+  content: 'Drop image here';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  color: #3b82f6;
+  pointer-events: none;
+  z-index: 11;
 }
 </style>
