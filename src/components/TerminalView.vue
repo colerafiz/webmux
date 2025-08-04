@@ -750,7 +750,8 @@ const fileToBase64 = (file: File): Promise<string> => {
 const buildOSC1337Sequence = (base64: string, filename: string): string => {
   // iTerm2 inline image protocol
   // ESC ] 1337 ; File = name={filename};size={size};inline=1:{base64} ^G
-  const encodedName = btoa(filename)
+  // Encode filename to handle Unicode characters
+  const encodedName = btoa(unescape(encodeURIComponent(filename)))
   const args = `name=${encodedName};size=${base64.length};inline=1`
   return `\x1b]1337;File=${args}:${base64}\x07`
 }
