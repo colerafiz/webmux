@@ -213,7 +213,7 @@ onMounted(() => {
   const term = new Terminal({
     cursorBlink: true,
     fontSize: 13,
-    fontFamily: 'JetBrains Mono, SF Mono, Monaco, Inconsolata, Fira Code, monospace',
+    fontFamily: '"JetBrainsMono Nerd Font", "JetBrains Mono", "SF Mono", Monaco, Inconsolata, "Fira Code", monospace',
     theme: {
       background: '#000000',
       foreground: '#c9d1d9',
