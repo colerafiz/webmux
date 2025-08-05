@@ -115,6 +115,25 @@ export interface WindowSelectedMessage extends WsMessage {
   windowIndex: number;
 }
 
+// Audio streaming messages
+export type AudioAction = 'start' | 'stop';
+
+export interface AudioControlMessage extends WsMessage {
+  type: 'audio-control';
+  action: AudioAction;
+}
+
+export interface AudioStatusMessage extends WsMessage {
+  type: 'audio-status';
+  streaming: boolean;
+  error?: string;
+}
+
+export interface AudioStreamMessage extends WsMessage {
+  type: 'audio-stream';
+  data: string; // base64 encoded audio data
+}
+
 // API-specific response types
 export interface SessionCreateResponse {
   success: boolean;

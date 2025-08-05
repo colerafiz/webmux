@@ -53,6 +53,15 @@ pub async fn start_streaming(client_tx: mpsc::UnboundedSender<BroadcastMessage>)
 pub async fn stop_streaming_for_client(client_tx: &mpsc::UnboundedSender<BroadcastMessage>) -> Result<()> {
     let mut state = AUDIO_STATE.lock().await;
     
+    // Send stop status to the client first
+    let status = ServerMessage::AudioStatus {
+        streaming: false,
+        error: None,
+    };
+    if let Ok(json) = serde_json::to_string(&status) {
+        let _ = client_tx.send(BroadcastMessage::Text(Arc::new(json)));
+    }
+    
     // Remove only this specific client
     state.clients.retain(|c| !c.same_channel(client_tx));
     info!("Audio client removed. Remaining clients: {}", state.clients.len());

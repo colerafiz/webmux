@@ -79,7 +79,7 @@
       <button
         v-if="!isCollapsed || isMobile"
         @click="handleCreate"
-        class="w-full px-3 py-1.5 text-xs border rounded transition-colors"
+        class="w-full px-3 py-1.5 text-xs border rounded transition-colors mb-3"
         style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
         :class="'hover:border-opacity-80'"
       >
@@ -90,7 +90,7 @@
       <button
         v-else-if="!isMobile"
         @click="handleCreate"
-        class="w-full p-1.5 hover-bg rounded transition-colors flex items-center justify-center"
+        class="w-full p-1.5 hover-bg rounded transition-colors flex items-center justify-center mb-3"
         style="color: var(--text-tertiary)"
         title="New Session"
       >
@@ -98,6 +98,9 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
       </button>
+      
+      <!-- Audio Control -->
+      <AudioControl v-if="!isCollapsed || isMobile" />
     </div>
 
     <div class="flex-1 overflow-y-auto">
@@ -135,6 +138,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import SessionItem from './SessionItem.vue'
+import AudioControl from './AudioControl.vue'
 import type { TmuxSession, TmuxWindow } from '@/types'
 
 interface Props {
