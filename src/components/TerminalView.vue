@@ -163,6 +163,7 @@
       tabindex="0" 
       :style="`background: #000; ${isMobile ? 'padding-top: 48px;' : ''}`" 
       @click="focusTerminal"
+      @contextmenu.prevent
       @touchstart="handleTouchStart"
       @touchend="handleTouchEnd"
       @dragover.prevent="handleDragOver"
