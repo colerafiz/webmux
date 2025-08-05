@@ -1,0 +1,69 @@
+# WebMux Basic Tmux Configuration
+# ~/.tmux.conf
+
+# Change prefix key to Ctrl-a
+unbind C-b
+set-option -g prefix C-a
+bind-key C-a send-prefix
+
+# Enable mouse support
+set -g mouse on
+
+# Start windows and panes at 1, not 0
+set -g base-index 1
+setw -g pane-base-index 1
+
+# Renumber windows when one is closed
+set -g renumber-windows on
+
+# Increase history limit
+set -g history-limit 10000
+
+# Enable vi mode
+setw -g mode-keys vi
+
+# Split panes using | and -
+bind | split-window -h
+bind - split-window -v
+unbind '"'
+unbind %
+
+# Reload config file
+bind r source-file ~/.tmux.conf \; display "Config reloaded!"
+
+# Switch panes using Alt-arrow without prefix
+bind -n M-Left select-pane -L
+bind -n M-Right select-pane -R
+bind -n M-Up select-pane -U
+bind -n M-Down select-pane -D
+
+# Resize panes
+bind -r H resize-pane -L 5
+bind -r J resize-pane -D 5
+bind -r K resize-pane -U 5
+bind -r L resize-pane -R 5
+
+# Don't rename windows automatically
+set-option -g allow-rename off
+
+# Status bar
+set -g status-bg black
+set -g status-fg white
+set -g status-interval 60
+set -g status-left-length 30
+set -g status-left '#[fg=green](#S) #(whoami) '
+set -g status-right '#[fg=yellow]#(cut -d " " -f 1-3 /proc/loadavg)#[default] #[fg=white]%H:%M#[default]'
+
+# Enable 256 colors
+set -g default-terminal "screen-256color"
+
+# Reduce escape time
+set -sg escape-time 0
+
+# Copy mode improvements
+bind-key -T copy-mode-vi v send-keys -X begin-selection
+bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
+
+# Window notifications
+setw -g monitor-activity on
+set -g visual-activity off

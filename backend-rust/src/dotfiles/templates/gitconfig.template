@@ -1,0 +1,77 @@
+# WebMux Basic Git Configuration
+# ~/.gitconfig
+
+[user]
+    # Set your name and email
+    name = Your Name
+    email = your.email@example.com
+
+[core]
+    editor = vim
+    whitespace = fix,-indent-with-non-tab,trailing-space,cr-at-eol
+    excludesfile = ~/.gitignore_global
+
+[color]
+    ui = auto
+    diff = auto
+    status = auto
+    branch = auto
+    interactive = auto
+
+[alias]
+    # Status and info
+    st = status -sb
+    s = status -s
+    
+    # Commits
+    c = commit
+    cm = commit -m
+    ca = commit -a
+    cam = commit -am
+    amend = commit --amend
+    
+    # Branches
+    br = branch
+    co = checkout
+    cob = checkout -b
+    
+    # Logs
+    l = log --oneline --graph --decorate
+    ll = log --oneline --graph --decorate --all
+    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'
+    
+    # Diffs
+    d = diff
+    dc = diff --cached
+    ds = diff --staged
+    
+    # Remote
+    f = fetch
+    pl = pull
+    ps = push
+    psu = push -u origin HEAD
+    
+    # Stash
+    sl = stash list
+    sa = stash apply
+    ss = stash save
+    
+    # Useful
+    last = log -1 HEAD
+    unstage = reset HEAD --
+    discard = checkout --
+    branches = branch -a
+    remotes = remote -v
+    tags = tag -l
+
+[push]
+    default = simple
+
+[pull]
+    rebase = false
+
+[merge]
+    tool = vimdiff
+
+[diff]
+    tool = vimdiff

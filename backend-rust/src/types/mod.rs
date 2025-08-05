@@ -179,6 +179,23 @@ pub enum WebSocketMessage {
     TestCronCommand {
         command: String,
     },
+    // Dotfile management
+    ListDotfiles,
+    ReadDotfile {
+        path: String,
+    },
+    WriteDotfile {
+        path: String,
+        content: String,
+    },
+    GetDotfileHistory {
+        path: String,
+    },
+    RestoreDotfileVersion {
+        path: String,
+        timestamp: DateTime<Utc>,
+    },
+    GetDotfileTemplates,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -282,6 +299,35 @@ pub enum ServerMessage {
         output: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         error: Option<String>,
+    },
+    // Dotfile management responses
+    DotfilesList {
+        files: Vec<crate::dotfiles::DotFile>,
+    },
+    DotfileContent {
+        path: String,
+        content: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    DotfileWritten {
+        path: String,
+        success: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    DotfileHistory {
+        path: String,
+        versions: Vec<crate::dotfiles::FileVersion>,
+    },
+    DotfileRestored {
+        path: String,
+        success: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    DotfileTemplates {
+        templates: Vec<crate::dotfiles::DotFileTemplate>,
     },
 }
 

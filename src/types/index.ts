@@ -109,10 +109,74 @@ export interface SessionsListMessage extends WsMessage {
   sessions: TmuxSession[];
 }
 
+export interface StatsMessage extends WsMessage {
+  type: 'stats';
+  stats: {
+    cpu: {
+      cores: number;
+      model: string;
+      usage: number;
+      loadAvg: number[];
+    };
+    memory: {
+      total: number;
+      used: number;
+      free: number;
+      percent: string;
+    };
+    uptime: number;
+    hostname: string;
+    platform: string;
+    arch: string;
+  };
+}
+
+export interface ErrorMessage extends WsMessage {
+  type: 'error';
+  message: string;
+}
+
 export interface WindowSelectedMessage extends WsMessage {
   type: 'window-selected';
   sessionName: string;
   windowIndex: number;
+}
+
+export interface SessionCreatedMessage extends WsMessage {
+  type: 'session-created';
+  success: boolean;
+  sessionName?: string;
+  error?: string;
+}
+
+export interface SessionKilledMessage extends WsMessage {
+  type: 'session-killed';
+  success: boolean;
+  error?: string;
+}
+
+export interface SessionRenamedMessage extends WsMessage {
+  type: 'session-renamed';
+  success: boolean;
+  error?: string;
+}
+
+export interface WindowCreatedMessage extends WsMessage {
+  type: 'window-created';
+  success: boolean;
+  error?: string;
+}
+
+export interface WindowKilledMessage extends WsMessage {
+  type: 'window-killed';
+  success: boolean;
+  error?: string;
+}
+
+export interface WindowRenamedMessage extends WsMessage {
+  type: 'window-renamed';
+  success: boolean;
+  error?: string;
 }
 
 // Audio streaming messages
@@ -237,3 +301,128 @@ export interface CronCommandOutputMessage extends WsMessage {
   output: string;
   error?: string;
 }
+
+// Dotfile management types
+export type DotFileType = 'Shell' | 'Git' | 'Vim' | 'Tmux' | 'SSH' | 'Other';
+
+export interface DotFile {
+  name: string;
+  path: string;
+  size: number;
+  modified: string;
+  exists: boolean;
+  readable: boolean;
+  writable: boolean;
+  fileType: DotFileType;
+}
+
+export interface FileVersion {
+  timestamp: string;
+  content: string;
+  size: number;
+  hash: string;
+}
+
+export interface DotFileTemplate {
+  name: string;
+  fileType: DotFileType;
+  description: string;
+  content: string;
+}
+
+// Dotfile client messages
+export interface ListDotfilesMessage extends WsMessage {
+  type: 'list-dotfiles';
+}
+
+export interface ReadDotfileMessage extends WsMessage {
+  type: 'read-dotfile';
+  path: string;
+}
+
+export interface WriteDotfileMessage extends WsMessage {
+  type: 'write-dotfile';
+  path: string;
+  content: string;
+}
+
+export interface GetDotfileHistoryMessage extends WsMessage {
+  type: 'get-dotfile-history';
+  path: string;
+}
+
+export interface RestoreDotfileVersionMessage extends WsMessage {
+  type: 'restore-dotfile-version';
+  path: string;
+  timestamp: string;
+}
+
+export interface GetDotfileTemplatesMessage extends WsMessage {
+  type: 'get-dotfile-templates';
+}
+
+// Dotfile server responses
+export interface DotfilesListMessage extends WsMessage {
+  type: 'dotfiles-list';
+  files: DotFile[];
+}
+
+export interface DotfileContentMessage extends WsMessage {
+  type: 'dotfile-content';
+  path: string;
+  content: string;
+  error?: string;
+}
+
+export interface DotfileWrittenMessage extends WsMessage {
+  type: 'dotfile-written';
+  path: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface DotfileHistoryMessage extends WsMessage {
+  type: 'dotfile-history';
+  path: string;
+  versions: FileVersion[];
+}
+
+export interface DotfileRestoredMessage extends WsMessage {
+  type: 'dotfile-restored';
+  path: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface DotfileTemplatesMessage extends WsMessage {
+  type: 'dotfile-templates';
+  templates: DotFileTemplate[];
+}
+
+// Union type for all server messages
+export type ServerMessage = 
+  | SessionsListMessage
+  | AttachedMessage
+  | OutputMessage
+  | DisconnectedMessage
+  | WindowsListMessage
+  | WindowSelectedMessage
+  | SessionCreatedMessage
+  | SessionKilledMessage
+  | SessionRenamedMessage
+  | WindowCreatedMessage
+  | WindowKilledMessage
+  | WindowRenamedMessage
+  | StatsMessage
+  | ErrorMessage
+  | CronJobsListMessage
+  | CronJobCreatedMessage
+  | CronJobUpdatedMessage
+  | CronJobDeletedMessage
+  | CronCommandOutputMessage
+  | DotfilesListMessage
+  | DotfileContentMessage
+  | DotfileWrittenMessage
+  | DotfileHistoryMessage
+  | DotfileRestoredMessage
+  | DotfileTemplatesMessage;

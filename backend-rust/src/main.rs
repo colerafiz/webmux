@@ -29,6 +29,7 @@ mod tmux_control;
 mod terminal_delta;
 mod buffer;
 mod cron;
+mod dotfiles;
 
 // Global flag for audio logging
 pub static ENABLE_AUDIO_LOGS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);

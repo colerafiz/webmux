@@ -54,6 +54,9 @@ base64 = "0.21"
 # Lazy static for global state
 lazy_static = "1.4"
 
+# Directory utilities
+dirs = "5.0"
+
 # Zero-copy bytes handling
 bytes = "1.5"
 

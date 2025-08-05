@@ -7,7 +7,7 @@ type MessageHandler<T extends WsMessage = WsMessage> = (data: T) => void
 export interface UseWebSocketReturn {
   isConnected: ComputedRef<boolean>
   send: (data: WsMessage) => void
-  onMessage: <T extends WsMessage = WsMessage>(type: string, handler: MessageHandler<T>) => void
+  onMessage: <T extends WsMessage = WsMessage>(type: string, handler: MessageHandler<T>) => () => void
   offMessage: (type: string) => void
   ensureConnected: () => Promise<void>
 }
@@ -20,9 +20,14 @@ export function useWebSocket(): UseWebSocketReturn {
     wsManager.send(data)
   }
 
-  const onMessage = <T extends WsMessage = WsMessage>(type: string, handler: MessageHandler<T>): void => {
+  const onMessage = <T extends WsMessage = WsMessage>(type: string, handler: MessageHandler<T>): (() => void) => {
     messageHandlers.set(type, handler as MessageHandler)
     wsManager.onMessage(type, handler as MessageHandler)
+    
+    // Return unsubscribe function
+    return () => {
+      offMessage(type)
+    }
   }
 
   const offMessage = (type: string): void => {

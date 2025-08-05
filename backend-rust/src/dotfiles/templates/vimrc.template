@@ -1,0 +1,64 @@
+" WebMux Basic Vim Configuration
+" ~/.vimrc
+
+" Enable syntax highlighting
+syntax on
+
+" Show line numbers
+set number
+set relativenumber
+
+" Enable mouse support
+set mouse=a
+
+" Indentation settings
+set tabstop=4
+set shiftwidth=4
+set expandtab
+set autoindent
+set smartindent
+
+" Search settings
+set hlsearch
+set incsearch
+set ignorecase
+set smartcase
+
+" UI settings
+set showcmd
+set showmatch
+set wildmenu
+set laststatus=2
+set ruler
+
+" File handling
+set encoding=utf-8
+set fileencoding=utf-8
+set nobackup
+set noswapfile
+
+" Performance
+set lazyredraw
+set ttyfast
+
+" Better backspace
+set backspace=indent,eol,start
+
+" Enable filetype plugins
+filetype plugin indent on
+
+" Key mappings
+" Clear search highlighting
+nnoremap <leader><space> :nohlsearch<CR>
+
+" Move between windows
+nnoremap <C-h> <C-w>h
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-l> <C-w>l
+
+" Quick save
+nnoremap <leader>w :w<CR>
+
+" Color scheme (if available)
+silent! colorscheme desert
