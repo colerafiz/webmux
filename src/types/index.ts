@@ -152,3 +152,88 @@ export interface WindowCreateResponse {
   window?: TmuxWindow;
   message?: string;
 }
+
+// Cron management types
+export interface CronJob {
+  id: string;
+  name: string;
+  schedule: string;
+  command: string;
+  enabled: boolean;
+  lastRun?: string;
+  nextRun?: string;
+  createdAt: string;
+  updatedAt: string;
+  environment?: Record<string, string>;
+  logOutput?: boolean;
+  emailTo?: string;
+  tmuxSession?: string;
+}
+
+export interface JobExecution {
+  jobId: string;
+  startedAt: string;
+  finishedAt?: string;
+  success: boolean;
+  output?: string;
+  error?: string;
+}
+
+// Cron WebSocket messages
+export interface ListCronJobsMessage extends WsMessage {
+  type: 'list-cron-jobs';
+}
+
+export interface CreateCronJobMessage extends WsMessage {
+  type: 'create-cron-job';
+  job: CronJob;
+}
+
+export interface UpdateCronJobMessage extends WsMessage {
+  type: 'update-cron-job';
+  id: string;
+  job: CronJob;
+}
+
+export interface DeleteCronJobMessage extends WsMessage {
+  type: 'delete-cron-job';
+  id: string;
+}
+
+export interface ToggleCronJobMessage extends WsMessage {
+  type: 'toggle-cron-job';
+  id: string;
+  enabled: boolean;
+}
+
+export interface TestCronCommandMessage extends WsMessage {
+  type: 'test-cron-command';
+  command: string;
+}
+
+// Cron server responses
+export interface CronJobsListMessage extends WsMessage {
+  type: 'cron-jobs-list';
+  jobs: CronJob[];
+}
+
+export interface CronJobCreatedMessage extends WsMessage {
+  type: 'cron-job-created';
+  job: CronJob;
+}
+
+export interface CronJobUpdatedMessage extends WsMessage {
+  type: 'cron-job-updated';
+  job: CronJob;
+}
+
+export interface CronJobDeletedMessage extends WsMessage {
+  type: 'cron-job-deleted';
+  id: string;
+}
+
+export interface CronCommandOutputMessage extends WsMessage {
+  type: 'cron-command-output';
+  output: string;
+  error?: string;
+}

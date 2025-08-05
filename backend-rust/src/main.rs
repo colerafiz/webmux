@@ -28,6 +28,7 @@ mod terminal_buffer;
 mod tmux_control;
 mod terminal_delta;
 mod buffer;
+mod cron;
 
 // Global flag for audio logging
 pub static ENABLE_AUDIO_LOGS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -92,6 +93,11 @@ async fn main() -> Result<()> {
         client_manager,
         optimized_client_manager: Arc::new(OptimizedClientManager::new()),
     };
+    
+    // Initialize CRON manager
+    if let Err(e) = crate::cron::CRON_MANAGER.initialize().await {
+        error!("Failed to initialize CRON manager: {}", e);
+    }
     
     // Start tmux monitor
     let monitor = monitor::TmuxMonitor::new(broadcast_tx);

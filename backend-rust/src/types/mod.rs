@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -74,6 +75,24 @@ pub struct MemoryInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CronJob {
+    pub id: String,
+    pub name: String,
+    pub schedule: String,
+    pub command: String,
+    pub enabled: bool,
+    pub last_run: Option<DateTime<Utc>>,
+    pub next_run: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub environment: Option<HashMap<String, String>>,
+    pub log_output: Option<bool>,
+    pub email_to: Option<String>,
+    pub tmux_session: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum WebSocketMessage {
     ListSessions,
@@ -141,6 +160,25 @@ pub enum WebSocketMessage {
     },
     // System stats
     GetStats,
+    // Cron management
+    ListCronJobs,
+    CreateCronJob {
+        job: CronJob,
+    },
+    UpdateCronJob {
+        id: String,
+        job: CronJob,
+    },
+    DeleteCronJob {
+        id: String,
+    },
+    ToggleCronJob {
+        id: String,
+        enabled: bool,
+    },
+    TestCronCommand {
+        command: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -226,6 +264,24 @@ pub enum ServerMessage {
     // Generic error response
     Error {
         message: String,
+    },
+    // Cron management responses
+    CronJobsList {
+        jobs: Vec<CronJob>,
+    },
+    CronJobCreated {
+        job: CronJob,
+    },
+    CronJobUpdated {
+        job: CronJob,
+    },
+    CronJobDeleted {
+        id: String,
+    },
+    CronCommandOutput {
+        output: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
     },
 }
 

@@ -132,6 +132,9 @@
         />
       </div>
     </div>
+    
+    <!-- CRON Section -->
+    <CronSection />
   </aside>
 </template>
 
@@ -139,6 +142,7 @@
 import { ref, nextTick } from 'vue'
 import SessionItem from './SessionItem.vue'
 import AudioControl from './AudioControl.vue'
+import CronSection from './CronSection.vue'
 import type { TmuxSession, TmuxWindow } from '@/types'
 
 interface Props {
