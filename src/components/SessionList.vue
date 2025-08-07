@@ -134,10 +134,10 @@
     </div>
     
     <!-- CRON Section -->
-    <CronSection />
+    <CronSection :isCollapsed="isCollapsed && !isMobile" />
     
     <!-- Dotfiles Section -->
-    <DotfilesSection />
+    <DotfilesSection :isCollapsed="isCollapsed && !isMobile" />
   </aside>
 </template>
 

@@ -2,7 +2,37 @@
   <div class="border-t" style="border-color: var(--border-primary)">
     <!-- CRON Header -->
     <div class="p-3">
+      <!-- Collapsed state - icon only -->
       <button
+        v-if="isCollapsed"
+        @click="toggleExpanded"
+        class="w-full flex items-center justify-center hover-bg rounded p-2"
+        :title="`CRON Jobs (${jobs.length})`"
+      >
+        <div class="relative">
+          <svg 
+            class="w-4 h-4" 
+            :class="{ 'text-green-500': isExpanded }"
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <!-- Job count badge -->
+          <span 
+            v-if="jobs.length > 0" 
+            class="absolute -top-1 -right-1 w-3 h-3 text-[8px] rounded-full flex items-center justify-center font-bold"
+            style="background: var(--accent-primary); color: var(--bg-primary)"
+          >
+            {{ jobs.length }}
+          </span>
+        </div>
+      </button>
+      
+      <!-- Expanded state - full header -->
+      <button
+        v-else
         @click="toggleExpanded"
         class="w-full flex items-center justify-between hover-bg rounded p-2 -m-2"
       >
@@ -36,7 +66,7 @@
     </div>
     
     <!-- CRON Content -->
-    <div v-show="isExpanded" class="px-3 pb-3">
+    <div v-show="isExpanded && !isCollapsed" class="px-3 pb-3">
       <!-- Loading state -->
       <div v-if="isLoading" class="py-4 text-center">
         <div class="animate-pulse text-xs" style="color: var(--text-tertiary)">
@@ -113,6 +143,14 @@ import type {
   DeleteCronJobMessage,
   ToggleCronJobMessage
 } from '@/types'
+
+interface Props {
+  isCollapsed?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  isCollapsed: false
+})
 
 const ws = useWebSocket()
 
