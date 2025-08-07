@@ -6,7 +6,7 @@
         <div class="flex items-center space-x-3 text-xs">
           <span style="color: var(--text-tertiary)">Session:</span>
           <span style="color: var(--text-primary)" class="font-medium">{{ session }}</span>
-          <div v-if="isAttached" class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-warning)" title="Session is attached"></div>
+          <div class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-success)" title="Active session"></div>
         </div>
         <div class="flex items-center space-x-2">
           <!-- Action buttons -->
@@ -187,7 +187,6 @@ import type { UseWebSocketReturn } from '@/composables/useWebSocket'
 
 interface Props {
   session: string
-  isAttached: boolean
   ws: UseWebSocketReturn
 }
 

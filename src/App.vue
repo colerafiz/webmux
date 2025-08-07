@@ -134,7 +134,6 @@
         <TerminalView 
           v-if="currentSession"
           :session="currentSession"
-          :isAttached="currentSessionData?.attached || false"
           :ws="ws"
           class="h-full"
         />
@@ -195,11 +194,6 @@ const stats = ref<SystemStats>({
 // Mobile detection
 const isMobile = computed(() => windowWidth.value < 768) // md breakpoint
 
-// Get current session data
-const currentSessionData = computed(() => {
-  const sessionList = Array.isArray(sessions) ? sessions : []
-  return sessionList.find(s => s.name === currentSession.value)
-})
 
 // Debounced search query
 const debouncedSearchQuery = ref('')
