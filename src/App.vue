@@ -197,7 +197,8 @@ const isMobile = computed(() => windowWidth.value < 768) // md breakpoint
 
 // Get current session data
 const currentSessionData = computed(() => {
-  return sessions.value.find(s => s.name === currentSession.value)
+  const sessionList = Array.isArray(sessions) ? sessions : []
+  return sessionList.find(s => s.name === currentSession.value)
 })
 
 // Debounced search query
