@@ -1,6 +1,5 @@
 pub mod optimized;
 pub mod optimized_session_manager;
-pub mod session_manager;
 
 use axum::{
     extract::{
