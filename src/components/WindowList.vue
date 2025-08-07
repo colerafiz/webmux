@@ -1,5 +1,5 @@
 <template>
-  <div class="pl-6 mt-1">
+  <div class="window-list">
     <!-- Modal for window name input -->
     <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cancelCreateWindow">
       <div class="p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" style="background: var(--bg-secondary); border: 1px solid var(--border-primary)">
@@ -57,31 +57,32 @@
         </div>
       </div>
     </div>
-    <div v-if="loading" class="text-xs" style="color: var(--text-tertiary)">
+    <div v-if="loading" class="window-status">
       Loading windows...
     </div>
-    <div v-else-if="error" class="text-xs text-red-500">
+    <div v-else-if="error" class="window-status error">
       Error loading windows
     </div>
-    <div v-else-if="windows.length === 0" class="text-xs" style="color: var(--text-tertiary)">
+    <div v-else-if="windows.length === 0" class="window-status">
       No windows
     </div>
-    <div v-else class="space-y-0.5">
+    <div v-else class="window-items">
       <div
         v-for="window in windows"
         :key="window.index"
         v-memo="[window.name, window.active && props.isActiveSession, window.panes, isEditing(window)]"
         @click="$emit('select-window', window)"
-        class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover-bg text-xs transition-all duration-150"
-        :class="{ 'bg-opacity-30': window.active && props.isActiveSession }"
-        :style="{
-          background: window.active && props.isActiveSession ? 'var(--bg-tertiary)' : 'transparent',
-          borderLeft: window.active && props.isActiveSession ? '2px solid var(--accent-secondary)' : '2px solid transparent'
-        }"
+        class="window-item group"
+        :class="{ 'window-active': window.active && props.isActiveSession }"
       >
-        <div class="flex items-center space-x-2 min-w-0">
-          <span class="font-mono" style="color: var(--text-tertiary)">{{ window.index }}:</span>
-          <span v-if="!isEditing(window)" class="truncate" :style="{ color: window.active && props.isActiveSession ? 'var(--text-primary)' : 'var(--text-secondary)' }">
+        <div class="window-label">
+          <!-- File icon -->
+          <svg class="window-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" clip-rule="evenodd" />
+          </svg>
+          
+          <!-- Window name -->
+          <span v-if="!isEditing(window)" class="window-name">
             {{ window.name }}
           </span>
           <input
@@ -91,28 +92,28 @@
             @keyup.escape="cancelEdit"
             @blur="confirmRename(window)"
             ref="editInput"
-            class="px-1 py-0.5 text-xs w-full focus:outline-none border"
-            style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
+            class="window-name-input"
           />
-          <span style="color: var(--text-tertiary)">({{ window.panes }}p)</span>
+          
+          <!-- Pane count -->
+          <span class="pane-count">{{ window.panes }}</span>
         </div>
         
-        <div class="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+        <!-- Actions -->
+        <div class="window-actions">
           <button
-            @click="startEdit(window)"
-            class="p-0.5 hover-bg rounded"
-            style="color: var(--text-tertiary)"
-            title="Rename Window"
+            @click.stop="startEdit(window)"
+            class="action-btn"
+            title="Rename window"
           >
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </button>
           <button
-            @click="killWindow(window)"
-            class="p-0.5 hover-bg rounded"
-            style="color: var(--text-tertiary)"
-            title="Kill Window"
+            @click.stop="killWindow(window)"
+            class="action-btn"
+            title="Kill window"
           >
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -123,11 +124,10 @@
       
       <button
         @click="createWindow"
-        class="w-full px-2 py-1 text-xs hover-bg rounded flex items-center justify-center space-x-1"
-        style="color: var(--text-tertiary); border: 1px dashed; border-color: var(--border-secondary)"
+        class="new-window-btn"
       >
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
         </svg>
         <span>New Window</span>
       </button>
@@ -386,3 +386,138 @@ defineExpose({
   refresh: () => loadWindows(false) // Don't show loading on manual refresh
 })
 </script>
+
+<style scoped>
+/* Window list container */
+.window-list {
+  @apply pl-5;
+}
+
+/* Status messages */
+.window-status {
+  @apply text-xs pl-6 py-1;
+  color: var(--text-tertiary);
+}
+
+.window-status.error {
+  color: var(--accent-danger);
+}
+
+/* Window items container */
+.window-items {
+  @apply space-y-0;
+}
+
+/* Window item */
+.window-item {
+  @apply relative flex items-center justify-between px-1 py-0.5 mx-1 rounded cursor-pointer;
+  @apply transition-all duration-150;
+  min-height: 24px;
+}
+
+.window-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.window-item.window-active {
+  background: rgba(88, 166, 255, 0.08);
+}
+
+.window-item.window-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--accent-secondary);
+  border-radius: 1px;
+  opacity: 0.7;
+}
+
+/* Window label */
+.window-label {
+  @apply flex items-center gap-1.5 flex-1 min-w-0 pl-5;
+}
+
+/* Window icon */
+.window-icon {
+  @apply w-3.5 h-3.5 flex-shrink-0;
+  color: var(--text-tertiary);
+}
+
+.window-active .window-icon {
+  color: var(--accent-secondary);
+}
+
+/* Window name */
+.window-name {
+  @apply text-xs truncate flex-1;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.window-active .window-name {
+  color: var(--text-primary);
+}
+
+.window-name-input {
+  @apply px-1 py-0 text-xs flex-1;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+  color: var(--text-primary);
+  outline: none;
+  border-radius: 2px;
+  font-size: 12px;
+  min-width: 100px;
+}
+
+/* Pane count */
+.pane-count {
+  @apply px-1 py-0 text-xs rounded ml-auto;
+  font-size: 10px;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  opacity: 0.8;
+}
+
+/* Window actions */
+.window-actions {
+  @apply flex items-center gap-0.5 opacity-0;
+  transition: opacity 150ms ease;
+}
+
+.window-item:hover .window-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  @apply p-0.5 rounded;
+  color: var(--text-tertiary);
+  transition: all 150ms ease;
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+/* New window button */
+.new-window-btn {
+  @apply flex items-center gap-1.5 w-full px-1 py-0.5 mx-1 rounded;
+  @apply transition-all duration-150;
+  color: var(--text-tertiary);
+  min-height: 24px;
+  padding-left: 1.5rem;
+  font-size: 12px;
+}
+
+.new-window-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+}
+
+.new-window-btn svg {
+  opacity: 0.6;
+}
+</style>

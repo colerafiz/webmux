@@ -64,43 +64,38 @@
         </div>
       </div>
     </div>
-    <div class="p-3 border-b" style="border-color: var(--border-primary)">
-      <div class="flex items-center justify-between mb-3">
-        <h2 
-          v-if="!isCollapsed || isMobile" 
-          class="text-xs font-medium" 
-          style="color: var(--text-secondary)"
-        >
-          Sessions ({{ sessions.length }})
-        </h2>
+    <div class="sidebar-header">
+      <div v-if="!isCollapsed || isMobile" class="header-content">
+        <div class="header-title">
+          <span>SESSIONS</span>
+          <span class="session-count">{{ sessions.length }}</span>
+        </div>
         
+        <button
+          @click="handleCreate"
+          class="new-session-btn"
+          title="New Session"
+        >
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+          </svg>
+        </button>
       </div>
-      
-      <button
-        v-if="!isCollapsed || isMobile"
-        @click="handleCreate"
-        class="w-full px-3 py-1.5 text-xs border rounded transition-colors mb-3"
-        style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
-        :class="'hover:border-opacity-80'"
-      >
-        New Session
-      </button>
       
       <!-- Collapsed state new session button (desktop only) -->
       <button
         v-else-if="!isMobile"
         @click="handleCreate"
-        class="w-full p-1.5 hover-bg rounded transition-colors flex items-center justify-center mb-3"
-        style="color: var(--text-tertiary)"
+        class="collapsed-new-btn"
         title="New Session"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
         </svg>
       </button>
       
       <!-- Audio Control -->
-      <AudioControl v-if="!isCollapsed || isMobile" />
+      <AudioControl v-if="!isCollapsed || isMobile" class="mt-2" />
     </div>
 
     <div class="flex-1 overflow-y-auto">
@@ -241,3 +236,76 @@ const cancelDelete = (): void => {
   sessionToDelete.value = null
 }
 </script>
+
+<style scoped>
+/* Sidebar header */
+.sidebar-header {
+  @apply px-3 py-2 border-b;
+  border-color: var(--border-primary);
+}
+
+.header-content {
+  @apply flex items-center justify-between;
+}
+
+.header-title {
+  @apply flex items-center gap-2 text-xs font-medium;
+  color: var(--text-tertiary);
+  letter-spacing: 0.05em;
+}
+
+.session-count {
+  @apply px-1.5 py-0.5 rounded;
+  font-size: 10px;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+/* New session button */
+.new-session-btn {
+  @apply p-1 rounded;
+  color: var(--text-tertiary);
+  transition: all 150ms ease;
+}
+
+.new-session-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+/* Collapsed new button */
+.collapsed-new-btn {
+  @apply w-full p-2 rounded flex items-center justify-center;
+  color: var(--text-tertiary);
+  transition: all 150ms ease;
+}
+
+.collapsed-new-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+/* Session list scroll area */
+.flex-1.overflow-y-auto {
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
+.flex-1.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.flex-1.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.flex-1.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 3px;
+}
+
+.flex-1.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+</style>

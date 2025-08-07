@@ -1,77 +1,79 @@
 <template>
-  <div class="group">
+  <div class="session-group">
     <div
       @click="handleSessionClick"
-      class="cursor-pointer transition-colors hover-bg"
-      :class="[
-        { 'bg-opacity-50': isActive },
-        isCollapsed ? 'px-2 py-2' : 'px-3 py-2'
-      ]"
-      :style="{
-        background: isActive ? 'var(--bg-tertiary)' : 'transparent',
-        borderLeft: isActive ? '2px solid var(--accent-primary)' : '2px solid transparent'
+      class="session-item group"
+      :class="{
+        'session-active': isActive,
+        'session-collapsed': isCollapsed
       }"
-      :title="isCollapsed ? `${session.name} (${session.windows}w)` : ''"
     >
-      <!-- Collapsed state - show only initials -->
+      <!-- Collapsed state - icon only -->
       <div v-if="isCollapsed" class="flex items-center justify-center">
-        <div 
-          class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-          :style="{
-            background: isActive ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-            color: isActive ? 'white' : 'var(--text-primary)'
-          }"
-        >
-          {{ getSessionInitials(session.name) }}
+        <div class="collapsed-icon">
+          <svg v-if="showWindows" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+          </svg>
+          <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H4v10a2 2 0 002 2h8a2 2 0 002-2V5h-2a1 1 0 100-2 2 2 0 012 2v10a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd" />
+          </svg>
+          <div v-if="isActive" class="active-dot"></div>
         </div>
       </div>
 
-      <!-- Expanded state - show full info -->
-      <div v-else class="flex items-center justify-between">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center space-x-2">
-            <button
-              @click.stop="toggleExpanded"
-              class="p-0.5 hover-bg rounded transition-all duration-200"
-              :style="{ 
-                transform: showWindows ? 'rotate(90deg)' : 'rotate(0deg)',
-                color: showWindows ? 'var(--text-secondary)' : 'var(--text-tertiary)'
-              }"
-              title="Toggle windows"
-            >
-              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-              </svg>
-            </button>
-            <div v-if="!isEditing" class="text-xs font-medium truncate" :style="{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }">
-              {{ session.name }}
-            </div>
-            <input
-              v-else
-              v-model="editName"
-              @keyup.enter="confirmRename"
-              @keyup.escape="cancelEdit"
-              @blur="confirmRename"
-              ref="editInput"
-              class="px-1 py-0.5 text-xs w-full focus:outline-none border"
-              style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
-            />
-            <div v-if="isActive" class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-success)" title="Active session"></div>
-            <div v-if="session.attached && !isActive" class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-warning)" title="Session is attached"></div>
-          </div>
+      <!-- Expanded state -->
+      <div v-else class="session-content">
+        <!-- Left side: chevron, icon, name -->
+        <div class="session-label">
+          <!-- Chevron -->
+          <svg 
+            @click.stop="toggleExpanded"
+            class="chevron" 
+            :class="{ 'chevron-expanded': showWindows }"
+            fill="currentColor" 
+            viewBox="0 0 20 20"
+          >
+            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+          </svg>
           
-          <div class="flex items-center space-x-3 text-xs mt-0.5" style="color: var(--text-tertiary)">
-            <span>{{ session.windows }}w</span>
-            <span v-if="session.dimensions">{{ session.dimensions }}</span>
+          <!-- Folder icon -->
+          <svg v-if="showWindows" class="folder-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+          </svg>
+          <svg v-else class="folder-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H4v10a2 2 0 002 2h8a2 2 0 002-2V5h-2a1 1 0 100-2 2 2 0 012 2v10a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd" />
+          </svg>
+          
+          <!-- Session name -->
+          <span v-if="!isEditing" class="session-name">
+            {{ session.name }}
+          </span>
+          <input
+            v-else
+            v-model="editName"
+            @keyup.enter="confirmRename"
+            @keyup.escape="cancelEdit"
+            @blur="confirmRename"
+            ref="editInput"
+            class="session-name-input"
+          />
+          
+          <!-- Indicators -->
+          <div class="indicators">
+            <div v-if="isActive" class="indicator-dot active-indicator" title="Active session"></div>
+            <div v-else-if="session.attached" class="indicator-dot attached-indicator" title="Session is attached"></div>
+            <span class="window-count">{{ session.windows }}</span>
           </div>
         </div>
         
-        <div class="flex items-center space-x-0.5" @click.stop>
+        <!-- Right side: actions (show on hover) -->
+        <div class="session-actions">
           <button
-            @click="startEdit"
-            class="p-1 hover-bg rounded"
-            style="color: var(--text-tertiary)"
-            title="Rename"
+            @click.stop="startEdit"
+            class="action-btn"
+            title="Rename session"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -79,9 +81,8 @@
           </button>
           <button
             @click.stop="$emit('kill')"
-            class="p-1 hover-bg rounded"
-            style="color: var(--text-tertiary)"
-            title="Kill"
+            class="action-btn"
+            title="Kill session"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -195,3 +196,155 @@ const getSessionInitials = (name: string): string => {
   return words.slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('')
 }
 </script>
+
+<style scoped>
+/* Session item styles */
+.session-item {
+  @apply relative flex items-center px-1 py-1 mx-1 rounded cursor-pointer;
+  @apply transition-all duration-150;
+  min-height: 28px;
+}
+
+.session-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.session-item.session-active {
+  background: rgba(88, 166, 255, 0.1);
+}
+
+.session-item.session-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-primary);
+  border-radius: 1px;
+}
+
+/* Collapsed state */
+.session-collapsed {
+  @apply px-2 py-2;
+}
+
+.collapsed-icon {
+  @apply relative;
+  color: var(--text-secondary);
+}
+
+.collapsed-icon .active-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  background: var(--accent-success);
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-secondary);
+}
+
+/* Session content */
+.session-content {
+  @apply flex items-center justify-between w-full gap-2;
+}
+
+.session-label {
+  @apply flex items-center gap-1.5 flex-1 min-w-0;
+}
+
+/* Chevron */
+.chevron {
+  @apply w-3 h-3 flex-shrink-0 transition-transform duration-150;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+.chevron:hover {
+  color: var(--text-secondary);
+}
+
+.chevron-expanded {
+  transform: rotate(90deg);
+}
+
+/* Folder icon */
+.folder-icon {
+  @apply w-4 h-4 flex-shrink-0;
+  color: var(--text-tertiary);
+}
+
+.session-active .folder-icon {
+  color: var(--accent-primary);
+}
+
+/* Session name */
+.session-name {
+  @apply text-xs font-medium truncate;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.session-name-input {
+  @apply px-1 py-0 text-xs w-full;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+  color: var(--text-primary);
+  outline: none;
+  border-radius: 2px;
+  font-size: 13px;
+}
+
+/* Indicators */
+.indicators {
+  @apply flex items-center gap-1.5 ml-auto;
+}
+
+.indicator-dot {
+  @apply w-1.5 h-1.5 rounded-full flex-shrink-0;
+}
+
+.active-indicator {
+  background: var(--accent-success);
+}
+
+.attached-indicator {
+  background: var(--accent-warning);
+}
+
+.window-count {
+  @apply px-1.5 py-0.5 text-xs rounded;
+  font-size: 11px;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  line-height: 1;
+}
+
+/* Session actions */
+.session-actions {
+  @apply flex items-center gap-0.5 opacity-0;
+  transition: opacity 150ms ease;
+}
+
+.session-item:hover .session-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  @apply p-0.5 rounded;
+  color: var(--text-tertiary);
+  transition: all 150ms ease;
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+/* Session group */
+.session-group {
+  @apply relative;
+}
+</style>
