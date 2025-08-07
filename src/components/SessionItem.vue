@@ -10,7 +10,7 @@
     >
       <!-- Collapsed state - icon only -->
       <div v-if="isCollapsed" class="flex items-center justify-center">
-        <div class="collapsed-icon">
+        <div class="collapsed-icon" :class="{ 'collapsed-active': isActive }">
           <svg v-if="showWindows" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
           </svg>
@@ -70,6 +70,16 @@
         
         <!-- Right side: actions (show on hover) -->
         <div class="session-actions">
+          <button
+            v-if="showWindows"
+            @click.stop="handleCreateWindow"
+            class="action-btn"
+            title="New window"
+          >
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+            </svg>
+          </button>
           <button
             @click.stop="startEdit"
             class="action-btn"
@@ -187,6 +197,13 @@ watch(() => props.isActive, (newVal) => {
 })
 
 // Helper function to get session initials
+const handleCreateWindow = (): void => {
+  // Call createWindow on the WindowList component if it's available
+  if (windowList.value) {
+    windowList.value.createWindow()
+  }
+}
+
 const getSessionInitials = (name: string): string => {
   if (!name) return '?'
   const words = name.split(/[-_\s]+/).filter(w => w.length > 0)
@@ -232,6 +249,10 @@ const getSessionInitials = (name: string): string => {
 .collapsed-icon {
   @apply relative;
   color: var(--text-secondary);
+}
+
+.collapsed-icon.collapsed-active {
+  color: var(--accent-primary);
 }
 
 .collapsed-icon .active-dot {

@@ -121,16 +121,6 @@
           </button>
         </div>
       </div>
-      
-      <button
-        @click="createWindow"
-        class="new-window-btn"
-      >
-        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-        </svg>
-        <span>New Window</span>
-      </button>
     </div>
   </div>
 </template>
@@ -383,7 +373,8 @@ watch(() => props.sessionName, (newSessionName, oldSessionName) => {
 })
 
 defineExpose({
-  refresh: () => loadWindows(false) // Don't show loading on manual refresh
+  refresh: () => loadWindows(false), // Don't show loading on manual refresh
+  createWindow
 })
 </script>
 
@@ -502,22 +493,4 @@ defineExpose({
   color: var(--text-secondary);
 }
 
-/* New window button */
-.new-window-btn {
-  @apply flex items-center gap-1.5 w-full px-1 py-0.5 mx-1 rounded;
-  @apply transition-all duration-150;
-  color: var(--text-tertiary);
-  min-height: 24px;
-  padding-left: 1.5rem;
-  font-size: 12px;
-}
-
-.new-window-btn:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-secondary);
-}
-
-.new-window-btn svg {
-  opacity: 0.6;
-}
 </style>
