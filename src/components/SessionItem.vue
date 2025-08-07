@@ -56,7 +56,8 @@
               class="px-1 py-0.5 text-xs w-full focus:outline-none border"
               style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
             />
-            <div v-if="session.attached" class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-warning)"></div>
+            <div v-if="isActive" class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-success)" title="Active session"></div>
+            <div v-if="session.attached && !isActive" class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-warning)" title="Session is attached"></div>
           </div>
           
           <div class="flex items-center space-x-3 text-xs mt-0.5" style="color: var(--text-tertiary)">

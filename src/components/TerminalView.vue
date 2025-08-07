@@ -6,7 +6,6 @@
         <div class="flex items-center space-x-3 text-xs">
           <span style="color: var(--text-tertiary)">Session:</span>
           <span style="color: var(--text-primary)" class="font-medium">{{ session }}</span>
-          <div class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-success)" title="Active session"></div>
         </div>
         <div class="flex items-center space-x-2">
           <!-- Action buttons -->
