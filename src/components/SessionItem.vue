@@ -22,7 +22,7 @@
           </svg>
         </button>
         
-        <span v-if="!isEditing" class="session-name">{{ session.name }}</span>
+        <span v-if="!isEditing" class="session-name">{{ session.name }} ({{ session.windows }})</span>
         <input
           v-else
           v-model="editName"
@@ -33,8 +33,6 @@
           class="name-input"
           @click.stop
         />
-        
-        <span class="session-count">{{ session.windows }}</span>
         
         <div class="session-actions">
           <button
@@ -255,12 +253,6 @@ const handleCreateWindow = (): void => {
   border-radius: 2px;
 }
 
-/* Session count */
-.session-count {
-  margin-left: 8px;
-  font-size: 11px;
-  opacity: 0.6;
-}
 
 /* Actions */
 .session-actions {
