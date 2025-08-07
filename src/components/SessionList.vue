@@ -5,7 +5,7 @@
       isMobile ? (isCollapsed ? 'w-0 overflow-hidden' : 'w-64') : (isCollapsed ? 'w-12' : 'w-64'),
       isMobile && !isCollapsed ? 'shadow-xl' : ''
     ]"
-    style="background: linear-gradient(to bottom, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.95) 100%); border-color: rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px)"
+    style="background: var(--bg-secondary); border-color: rgba(255, 255, 255, 0.06)"
   >
     <!-- Modal for delete confirmation -->
     <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cancelDelete">
@@ -105,18 +105,12 @@
     </div>
 
     <div class="flex-1 overflow-y-auto">
-      <div v-if="isLoading && sessions.length === 0" class="flex flex-col items-center justify-center py-12">
-        <div class="loading-spinner mb-3"></div>
-        <div class="text-xs" style="color: var(--text-tertiary)">Loading sessions...</div>
+      <div v-if="isLoading && sessions.length === 0" class="p-4">
+        <div class="text-xs" style="color: var(--text-tertiary)">Loading...</div>
       </div>
       
-      <div v-else-if="sessions.length === 0" class="flex flex-col items-center justify-center py-12">
-        <svg v-if="!isCollapsed" class="w-12 h-12 mb-3" style="color: var(--text-tertiary); opacity: 0.2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-        </svg>
-        <p v-if="!isCollapsed" class="text-sm font-medium mb-1" style="color: var(--text-secondary)">No sessions</p>
-        <p v-if="!isCollapsed" class="text-xs" style="color: var(--text-tertiary)">Create a new session to get started</p>
-        <div v-else class="text-xs" style="color: var(--text-tertiary); opacity: 0.5" title="No sessions">—</div>
+      <div v-else-if="sessions.length === 0" class="p-4">
+        <div class="text-xs" style="color: var(--text-tertiary)">No sessions</div>
       </div>
       
       <div v-else class="py-2">
@@ -248,9 +242,8 @@ const cancelDelete = (): void => {
 <style scoped>
 /* Sidebar header */
 .sidebar-header {
-  @apply px-4 py-4 border-b;
-  border-color: rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.2);
+  @apply px-3 py-2 border-b;
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .header-content {
@@ -258,31 +251,26 @@ const cancelDelete = (): void => {
 }
 
 .header-title {
-  @apply flex items-center gap-2 text-xs font-medium;
-  color: var(--text-secondary);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  @apply flex items-center gap-2 text-xs;
+  color: var(--text-tertiary);
+  font-weight: 500;
 }
 
 .session-count {
-  @apply px-1.5 py-0.5 rounded-md text-xs;
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
 /* New session button */
 .new-session-btn {
-  @apply p-1.5 rounded-md;
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  transition: all 150ms ease;
+  @apply p-1 rounded;
+  color: var(--text-tertiary);
+  transition: all 100ms ease;
 }
 
 .new-session-btn:hover {
-  background: rgba(59, 130, 246, 0.2);
-  transform: scale(1.05);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .new-session-btn svg {
@@ -291,15 +279,14 @@ const cancelDelete = (): void => {
 
 /* Collapsed new button */
 .collapsed-new-btn {
-  @apply w-full p-2.5 rounded-lg flex items-center justify-center;
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  transition: all 150ms ease;
+  @apply w-full p-2 rounded flex items-center justify-center;
+  color: var(--text-tertiary);
+  transition: all 100ms ease;
 }
 
 .collapsed-new-btn:hover {
-  background: rgba(59, 130, 246, 0.2);
-  transform: scale(1.05);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* Session list scroll area */
@@ -326,15 +313,4 @@ const cancelDelete = (): void => {
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Loading spinner */
-.loading-spinner {
-  @apply w-6 h-6 border-2 rounded-full;
-  border-color: rgba(59, 130, 246, 0.2);
-  border-top-color: #3b82f6;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 </style>
