@@ -86,7 +86,7 @@
         :class="{ 'active': window.active && props.isActiveSession }"
       >
         <span v-if="!isEditing(window)" class="window-name">
-          {{ window.name }}
+          {{ window.name }}{{ window.panes > 1 ? ` (${window.panes}p)` : '' }}
         </span>
         <input
           v-else
@@ -98,8 +98,6 @@
           class="window-name-input"
           @click.stop
         />
-        
-        <span v-if="window.panes > 1" class="pane-count">{{ window.panes }}</span>
         
         <div class="window-actions">
           <button
@@ -404,11 +402,6 @@ defineExpose({
   border-radius: 2px;
 }
 
-.pane-count {
-  margin-left: 8px;
-  font-size: 10px;
-  opacity: 0.5;
-}
 
 .window-actions {
   display: flex;

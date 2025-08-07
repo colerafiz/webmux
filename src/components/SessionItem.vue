@@ -22,7 +22,7 @@
           </svg>
         </button>
         
-        <span v-if="!isEditing" class="session-name">{{ session.name }} ({{ session.windows }})</span>
+        <span v-if="!isEditing" class="session-name">{{ session.name }} ({{ session.windows }}w)</span>
         <input
           v-else
           v-model="editName"
