@@ -25,8 +25,6 @@ mod websocket;
 mod audio;
 mod monitor;
 mod terminal_buffer;
-mod tmux_control;
-mod terminal_delta;
 mod buffer;
 mod cron;
 mod dotfiles;
