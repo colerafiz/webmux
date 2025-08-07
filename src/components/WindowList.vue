@@ -2,29 +2,33 @@
   <div class="window-list">
     <!-- Modal for window name input -->
     <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cancelCreateWindow">
-      <div class="p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" style="background: var(--bg-secondary); border: 1px solid var(--border-primary)">
+      <div class="p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%); border: 1px solid rgba(148, 163, 184, 0.2); backdrop-filter: blur(20px)">
         <h3 class="text-lg font-semibold mb-4" style="color: var(--text-primary)">Create New Window</h3>
         <input 
           v-model="newWindowName"
           type="text" 
           placeholder="Window name (optional)"
-          class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
+          class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-150"
+          style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(148, 163, 184, 0.2); color: var(--text-primary)"
           @keyup.enter="confirmCreateWindow"
           ref="windowNameInput"
         />
         <div class="flex justify-end space-x-2 mt-4">
           <button 
             @click="cancelCreateWindow"
-            class="px-4 py-2 text-sm border rounded"
-            style="background: var(--bg-secondary); border-color: var(--border-primary); color: var(--text-secondary)"
+            class="px-4 py-2 text-sm rounded-lg transition-all duration-150"
+            style="background: rgba(148, 163, 184, 0.1); color: var(--text-secondary)"
+            onmouseover="this.style.background='rgba(148, 163, 184, 0.2)'"
+            onmouseout="this.style.background='rgba(148, 163, 184, 0.1)'"
           >
             Cancel
           </button>
           <button 
             @click="confirmCreateWindow"
-            class="px-4 py-2 text-sm border rounded"
-            style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary)"
+            class="px-4 py-2 text-sm rounded-lg transition-all duration-150 font-medium"
+            style="background: rgba(59, 130, 246, 0.9); color: white"
+            onmouseover="this.style.background='rgba(59, 130, 246, 1)'"
+            onmouseout="this.style.background='rgba(59, 130, 246, 0.9)'"
           >
             Create
           </button>
@@ -34,7 +38,7 @@
     
     <!-- Modal for delete confirmation -->
     <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cancelDelete">
-      <div class="p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" style="background: var(--bg-secondary); border: 1px solid var(--border-primary)">
+      <div class="p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%); border: 1px solid rgba(148, 163, 184, 0.2); backdrop-filter: blur(20px)">
         <h3 class="text-lg font-semibold mb-4" style="color: var(--text-primary)">Delete Window</h3>
         <p class="mb-4" style="color: var(--text-secondary)">
           Are you sure you want to kill window "{{ windowToDelete?.name }}"?
@@ -42,29 +46,41 @@
         <div class="flex justify-end space-x-2">
           <button 
             @click="cancelDelete"
-            class="px-4 py-2 text-sm border rounded"
-            style="background: var(--bg-secondary); border-color: var(--border-primary); color: var(--text-secondary)"
+            class="px-4 py-2 text-sm rounded-lg transition-all duration-150"
+            style="background: rgba(148, 163, 184, 0.1); color: var(--text-secondary)"
+            onmouseover="this.style.background='rgba(148, 163, 184, 0.2)'"
+            onmouseout="this.style.background='rgba(148, 163, 184, 0.1)'"
           >
             Cancel
           </button>
           <button 
             @click="confirmDelete"
-            class="px-4 py-2 text-sm border rounded"
-            style="background: #f85149; border-color: #f85149; color: white"
+            class="px-4 py-2 text-sm rounded-lg transition-all duration-150 font-medium"
+            style="background: rgba(248, 81, 73, 0.9); color: white"
+            onmouseover="this.style.background='rgba(248, 81, 73, 1)'"
+            onmouseout="this.style.background='rgba(248, 81, 73, 0.9)'"
           >
             Delete
           </button>
         </div>
       </div>
     </div>
+
     <div v-if="loading" class="window-status">
-      Loading windows...
+      <div class="loading-spinner"></div>
+      <span>Loading windows...</span>
     </div>
     <div v-else-if="error" class="window-status error">
-      Error loading windows
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>Error loading windows</span>
     </div>
     <div v-else-if="windows.length === 0" class="window-status">
-      No windows
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+      <span>No windows</span>
     </div>
     <div v-else class="window-items">
       <div
@@ -75,15 +91,18 @@
         class="window-item"
         :class="{ 'window-active': window.active && props.isActiveSession }"
       >
-        <!-- Left content group -->
-        <div class="window-content">
-          <div class="window-label">
-            <!-- Window icon (square brackets) -->
-            <svg class="window-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+        <!-- Window Content -->
+        <div class="window-main">
+          <!-- Window Icon -->
+          <div class="window-icon-wrapper">
+            <svg class="window-icon" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 9h14" />
             </svg>
-            
-            <!-- Window name -->
+          </div>
+          
+          <!-- Window Info -->
+          <div class="window-info">
             <span v-if="!isEditing(window)" class="window-name">
               {{ window.name }}
             </span>
@@ -96,35 +115,30 @@
               ref="editInput"
               class="window-name-input"
             />
-          </div>
-          
-          <!-- Pane count badge -->
-          <div class="pane-count-badge" :title="`${window.panes} ${window.panes === 1 ? 'pane' : 'panes'}`">
-            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h2m10-16h-2a2 2 0 00-2 2v12a2 2 0 002 2h2m-6-16v16" />
-            </svg>
-            <span>{{ window.panes }}</span>
+            <span class="window-meta">
+              {{ window.panes }} {{ window.panes === 1 ? 'pane' : 'panes' }}
+            </span>
           </div>
         </div>
         
-        <!-- Actions (right side) -->
+        <!-- Actions -->
         <div class="window-actions">
           <button
             @click.stop="startEdit(window)"
-            class="action-btn"
+            class="window-action-btn"
             title="Rename window"
           >
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
             </svg>
           </button>
           <button
             @click.stop="killWindow(window)"
-            class="action-btn"
+            class="window-action-btn danger"
             title="Kill window"
           >
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
             </svg>
           </button>
         </div>
@@ -387,149 +401,144 @@ defineExpose({
 <style scoped>
 /* Window list container */
 .window-list {
-  /* Remove padding - windows will handle their own spacing */
+  @apply px-3 pb-3;
 }
 
 /* Status messages */
 .window-status {
-  @apply text-xs py-1;
-  padding-left: 32px;
+  @apply flex items-center justify-center gap-2 py-8 text-xs;
   color: var(--text-tertiary);
+  opacity: 0.6;
 }
 
 .window-status.error {
   color: var(--accent-danger);
 }
 
+/* Loading spinner */
+.loading-spinner {
+  @apply w-4 h-4 border-2 rounded-full;
+  border-color: var(--text-tertiary);
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Window items container */
 .window-items {
-  @apply space-y-0;
+  @apply space-y-2;
 }
 
-/* Window item */
+/* Window item - modern nested card */
 .window-item {
-  @apply relative flex items-center justify-between py-1 cursor-pointer;
-  @apply transition-all duration-150;
-  min-height: 26px;
-  margin: 2px 0;
-  padding-left: 28px;
-  padding-right: 8px;
-  border-radius: 0 4px 4px 0;
-  gap: 8px;
+  @apply relative px-4 py-3 rounded-lg cursor-pointer overflow-hidden;
+  @apply transition-all duration-200 ease-out;
+  background: rgba(203, 213, 225, 0.05);
+  border: 1px solid rgba(203, 213, 225, 0.08);
+  margin-left: 20px;
 }
 
-.window-item:hover:not(.window-active) {
-  background: rgba(255, 255, 255, 0.02);
-  padding-left: 30px;
+.window-item::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  width: 16px;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.window-item:hover {
+  background: rgba(203, 213, 225, 0.08);
+  border-color: rgba(203, 213, 225, 0.15);
+  transform: translateX(2px);
 }
 
 .window-item.window-active {
-  background: rgba(88, 166, 255, 0.1);
-  padding-left: 32px;
-  margin: 2px 4px;
-  border-radius: 4px;
-  border: 1px solid rgba(88, 166, 255, 0.2);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.03) 100%);
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: inset 0 1px 2px rgba(59, 130, 246, 0.05);
 }
 
-.window-item.window-active::before {
-  content: '';
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  box-shadow: 0 0 8px rgba(88, 166, 255, 0.4);
-}
-
-/* Window content wrapper */
-.window-content {
-  @apply flex items-center gap-2 flex-1;
-}
-
-/* Window label */
-.window-label {
-  @apply flex items-center gap-1.5 min-w-0;
+/* Window main content */
+.window-main {
+  @apply flex items-center gap-3;
 }
 
 /* Window icon */
+.window-icon-wrapper {
+  @apply p-1.5 rounded;
+  background: rgba(148, 163, 184, 0.08);
+}
+
 .window-icon {
-  @apply w-3.5 h-3.5 flex-shrink-0;
-  stroke: var(--text-tertiary);
-  transition: stroke 150ms ease;
+  @apply w-4 h-4;
+  color: var(--text-tertiary);
+}
+
+.window-active .window-icon-wrapper {
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .window-active .window-icon {
-  stroke: var(--text-primary);
+  color: #3b82f6;
 }
 
-/* Window name */
+/* Window info */
+.window-info {
+  @apply flex-1 min-w-0;
+}
+
 .window-name {
-  @apply text-xs truncate;
-  color: var(--text-secondary);
-  font-size: 12px;
-  transition: color 150ms ease;
-  flex: 1;
+  @apply block text-sm font-medium truncate mb-0.5;
+  color: var(--text-primary);
 }
 
 .window-active .window-name {
-  color: var(--text-primary);
-  font-weight: 500;
+  color: #3b82f6;
 }
 
 .window-name-input {
-  @apply px-1 py-0 text-xs flex-1;
-  background: var(--bg-primary);
-  border: 1px solid var(--accent-primary);
+  @apply px-2 py-0.5 text-sm font-medium w-full rounded;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.5);
   color: var(--text-primary);
   outline: none;
-  border-radius: 2px;
-  font-size: 12px;
-  min-width: 100px;
+  margin-bottom: 2px;
 }
 
-/* Pane count badge */
-.pane-count-badge {
-  @apply flex items-center gap-0.5 px-1.5 py-0.5 rounded-full;
-  background: var(--bg-tertiary);
+.window-meta {
+  @apply text-xs;
   color: var(--text-tertiary);
-  font-size: 10px;
-  opacity: 0.6;
-  transition: all 150ms ease;
-}
-
-.pane-count-badge:hover {
-  opacity: 0.8;
-}
-
-.window-active .pane-count-badge {
-  opacity: 0.9;
-  background: rgba(88, 166, 255, 0.08);
-  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 /* Window actions */
 .window-actions {
-  @apply flex items-center gap-0.5 opacity-0;
-  transition: opacity 150ms ease;
+  @apply flex items-center gap-1 ml-auto opacity-0 transition-opacity duration-200;
 }
 
 .window-item:hover .window-actions {
   opacity: 1;
 }
 
-.action-btn {
-  @apply p-0.5 rounded;
+.window-action-btn {
+  @apply p-1 rounded transition-all duration-150;
+  background: rgba(148, 163, 184, 0.08);
   color: var(--text-tertiary);
-  transition: all 150ms ease;
 }
 
-.action-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+.window-action-btn:hover {
+  background: rgba(148, 163, 184, 0.15);
   color: var(--text-secondary);
+  transform: scale(1.1);
 }
 
+.window-action-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
 </style>

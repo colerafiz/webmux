@@ -1,113 +1,130 @@
 <template>
-  <div class="session-group">
+  <div class="session-card">
     <div
       @click="handleSessionClick"
-      class="session-item"
+      class="session-header"
       :class="{
         'session-active': isActive,
         'session-collapsed': isCollapsed
       }"
     >
-      <!-- Collapsed state - icon only -->
-      <div v-if="isCollapsed" class="flex items-center justify-center">
-        <div class="collapsed-icon" :class="{ 'collapsed-active': isActive }">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <div v-if="isActive" class="active-dot"></div>
+      <!-- Collapsed state -->
+      <div v-if="isCollapsed" class="collapsed-content">
+        <div class="session-avatar" :class="{ active: isActive }">
+          {{ session.name.substring(0, 2).toUpperCase() }}
         </div>
       </div>
 
       <!-- Expanded state -->
       <div v-else class="session-content">
-        <!-- Left side: chevron, icon, name -->
-        <div class="session-label">
-          <!-- Chevron -->
-          <svg 
-            @click.stop="toggleExpanded"
-            class="chevron" 
-            :class="{ 'chevron-expanded': showWindows }"
-            fill="currentColor" 
-            viewBox="0 0 20 20"
-          >
-            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-          </svg>
+        <div class="session-main">
+          <!-- Status indicator -->
+          <div class="status-indicator" :class="{ active: isActive }"></div>
           
-          <!-- Terminal icon -->
-          <svg class="terminal-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+          <!-- Session Icon with gradient background -->
+          <div class="session-icon-wrapper">
+            <svg class="session-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
           
-          <!-- Session name -->
-          <span v-if="!isEditing" class="session-name">
-            {{ session.name }}
-          </span>
-          <input
-            v-else
-            v-model="editName"
-            @keyup.enter="confirmRename"
-            @keyup.escape="cancelEdit"
-            @blur="confirmRename"
-            ref="editInput"
-            class="session-name-input"
-          />
-          
-          <!-- Indicators -->
-          <div class="indicators">
-            <div v-if="isActive" class="indicator-dot active-indicator" title="Active session"></div>
-            <div v-else-if="session.attached" class="indicator-dot attached-indicator" title="Session is attached"></div>
+          <!-- Session Info -->
+          <div class="session-info">
+            <div class="session-name-row">
+              <h3 v-if="!isEditing" class="session-name">
+                {{ session.name }}
+              </h3>
+              <input
+                v-else
+                v-model="editName"
+                @keyup.enter="confirmRename"
+                @keyup.escape="cancelEdit"
+                @blur="confirmRename"
+                ref="editInput"
+                class="session-name-input"
+              />
+              <span v-if="session.attached" class="attached-pill">
+                <span class="attached-dot"></span>
+                Attached
+              </span>
+            </div>
+            <div class="session-stats">
+              <div class="stat-item">
+                <svg class="stat-icon" fill="none" viewBox="0 0 20 20" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5a4 4 0 014 4v5a4 4 0 01-4 4H7a4 4 0 01-4-4V7a4 4 0 014-4z" />
+                </svg>
+                <span>{{ session.windows }} {{ session.windows === 1 ? 'window' : 'windows' }}</span>
+              </div>
+              <div class="stat-item">
+                <svg class="stat-icon" fill="none" viewBox="0 0 20 20" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Active</span>
+              </div>
+            </div>
           </div>
         </div>
         
-        <!-- Window count badge -->
-        <div class="window-count-badge" :title="`${session.windows} ${session.windows === 1 ? 'window' : 'windows'}`">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
-          </svg>
-          <span>{{ session.windows }}</span>
-        </div>
-        
-        <!-- Right side: actions (show on hover) -->
+        <!-- Actions -->
         <div class="session-actions">
           <button
-            v-if="showWindows"
-            @click.stop="handleCreateWindow"
-            class="action-btn"
-            title="New window"
+            @click.stop="toggleExpanded"
+            class="expand-btn"
+            :class="{ expanded: showWindows }"
           >
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </button>
-          <button
-            @click.stop="startEdit"
-            class="action-btn"
-            title="Rename session"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-          <button
-            @click.stop="$emit('kill')"
-            class="action-btn"
-            title="Kill session"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div class="action-group">
+            <button
+              v-if="showWindows"
+              @click.stop="handleCreateWindow"
+              class="action-btn primary"
+              title="New window"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </button>
+            <button
+              @click.stop="startEdit"
+              class="action-btn"
+              title="Rename"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+              </svg>
+            </button>
+            <button
+              @click.stop="$emit('kill')"
+              class="action-btn danger"
+              title="Kill session"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
     
-    <WindowList
-      v-if="showWindows && !isCollapsed"
-      :session-name="session.name"
-      :is-active-session="isActive"
-      @select-window="(window) => $emit('select-window', window)"
-      ref="windowList"
-    />
+    <!-- Windows List -->
+    <transition
+      name="windows-slide"
+      @enter="onWindowsEnter"
+      @leave="onWindowsLeave"
+    >
+      <WindowList
+        v-if="showWindows && !isCollapsed"
+        :session-name="session.name"
+        :is-active-session="isActive"
+        @select-window="(window) => $emit('select-window', window)"
+        ref="windowList"
+        class="windows-container"
+      />
+    </transition>
   </div>
 </template>
 
@@ -163,8 +180,6 @@ const cancelEdit = (): void => {
   editName.value = ''
 }
 
-// Removed unused formatDate function
-
 const toggleExpanded = (): void => {
   showWindows.value = !showWindows.value
   if (showWindows.value && windowList.value) {
@@ -197,211 +212,223 @@ watch(() => props.isActive, (newVal) => {
 
 // Helper function to handle create window
 const handleCreateWindow = (): void => {
-  // Call createWindow on the WindowList component if it's available
   if (windowList.value) {
     windowList.value.createWindow()
   }
 }
+
+// Animation handlers
+const onWindowsEnter = (el: Element): void => {
+  const element = el as HTMLElement
+  element.style.maxHeight = '0px'
+  element.style.opacity = '0'
+  
+  requestAnimationFrame(() => {
+    element.style.transition = 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+    element.style.maxHeight = element.scrollHeight + 'px'
+    element.style.opacity = '1'
+  })
+}
+
+const onWindowsLeave = (el: Element): void => {
+  const element = el as HTMLElement
+  element.style.transition = 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)'
+  element.style.maxHeight = '0px'
+  element.style.opacity = '0'
+}
 </script>
 
 <style scoped>
-/* Session item styles */
-.session-item {
-  @apply relative flex items-center px-2 py-1 cursor-pointer;
-  @apply transition-all duration-150;
-  min-height: 28px;
-  margin: 0 4px;
-  border-radius: 4px;
+/* Session card container */
+.session-card {
+  @apply mb-3;
 }
 
-.session-item:hover:not(.session-active) {
-  background: rgba(255, 255, 255, 0.04);
+/* Session header - modern card design */
+.session-header {
+  @apply relative mx-3 rounded-xl cursor-pointer overflow-hidden;
+  @apply transition-all duration-300 ease-out;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(30, 41, 59, 0.3) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-/* Ensure icons don't get affected by hover background */
-.session-item:hover svg {
-  background: transparent;
+.session-header:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: rgba(148, 163, 184, 0.2);
 }
 
-/* Active session - full width highlight */
-.session-item.session-active {
-  background: rgba(139, 148, 158, 0.1);
-  margin: 0;
-  border-radius: 0;
-  padding-left: 12px;
-  border: 1px solid rgba(139, 148, 158, 0.2);
-  border-left: none;
-  border-right: none;
-}
-
-.session-item.session-active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--accent-success);
+.session-header.session-active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 10px 15px -3px rgba(59, 130, 246, 0.1);
 }
 
 /* Collapsed state */
-.session-collapsed {
-  @apply px-2 py-2;
+.collapsed-content {
+  @apply p-3 flex items-center justify-center;
 }
 
-/* Collapsed active state adjustments */
-.session-collapsed.session-active {
-  @apply px-2; /* Keep consistent padding in collapsed state */
-}
-
-.collapsed-icon {
-  @apply relative;
-}
-
-.collapsed-icon svg {
+.session-avatar {
+  @apply w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold;
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.2) 0%, rgba(148, 163, 184, 0.1) 100%);
   color: var(--text-secondary);
+  transition: all 200ms ease;
 }
 
-.collapsed-icon.collapsed-active svg {
-  color: var(--accent-primary);
-}
-
-.collapsed-icon .active-dot {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 6px;
-  height: 6px;
-  background: var(--accent-success);
-  border-radius: 50%;
-  border: 1.5px solid var(--bg-secondary);
+.session-avatar.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(59, 130, 246, 0.1) 100%);
+  color: #3b82f6;
 }
 
 /* Session content */
 .session-content {
-  @apply flex items-center w-full gap-2;
+  @apply p-4 flex items-center justify-between gap-3;
 }
 
-.session-label {
-  @apply flex items-center gap-1.5 min-w-0;
-  flex: 1;
+.session-main {
+  @apply flex items-center gap-3 flex-1 min-w-0;
 }
 
-/* Adjust label spacing for active sessions */
-.session-active .session-label {
-  margin-left: 2px;
+/* Status indicator */
+.status-indicator {
+  @apply w-1 h-8 rounded-full bg-gray-600 transition-all duration-300;
 }
 
-/* Chevron */
-.chevron {
-  @apply w-3 h-3 flex-shrink-0 transition-transform duration-150;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  margin-left: -2px;
-  margin-right: 2px;
+.status-indicator.active {
+  @apply bg-blue-500;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
 
-.chevron:hover {
+/* Session icon */
+.session-icon-wrapper {
+  @apply relative p-2.5 rounded-lg;
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.1) 0%, rgba(148, 163, 184, 0.05) 100%);
+}
+
+.session-icon {
+  @apply w-5 h-5;
   color: var(--text-secondary);
 }
 
-.chevron-expanded {
-  transform: rotate(90deg);
+.session-active .session-icon-wrapper {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
 }
 
-/* Terminal icon */
-.terminal-icon {
-  @apply w-4 h-4 flex-shrink-0;
-  stroke: var(--text-tertiary);
+.session-active .session-icon {
+  color: #3b82f6;
 }
 
-.session-active .terminal-icon {
-  stroke: var(--text-primary);
+/* Session info */
+.session-info {
+  @apply flex-1 min-w-0;
 }
 
-/* Session name */
+.session-name-row {
+  @apply flex items-center gap-2 mb-1;
+}
+
 .session-name {
-  @apply text-xs font-medium truncate;
+  @apply text-base font-semibold truncate;
   color: var(--text-primary);
-  font-size: 13px;
+  letter-spacing: -0.02em;
 }
 
 .session-name-input {
-  @apply px-1 py-0 text-xs w-full;
-  background: var(--bg-primary);
-  border: 1px solid var(--accent-primary);
+  @apply px-2 py-1 text-base font-semibold w-full rounded-md;
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(59, 130, 246, 0.5);
   color: var(--text-primary);
   outline: none;
-  border-radius: 2px;
-  font-size: 13px;
 }
 
-/* Indicators */
-.indicators {
-  @apply flex items-center gap-1.5;
+/* Attached pill */
+.attached-pill {
+  @apply flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
 }
 
-.indicator-dot {
-  @apply w-1.5 h-1.5 rounded-full flex-shrink-0;
+.attached-dot {
+  @apply w-1.5 h-1.5 rounded-full bg-green-500;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.active-indicator {
-  background: var(--accent-success);
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-.attached-indicator {
-  background: var(--accent-warning);
+/* Session stats */
+.session-stats {
+  @apply flex items-center gap-3;
 }
 
-/* Window count badge */
-.window-count-badge {
-  @apply flex items-center gap-1 px-2 py-0.5 rounded-full;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: 11px;
-  margin-left: 8px;
-  opacity: 0.8;
-  transition: opacity 150ms ease;
+.stat-item {
+  @apply flex items-center gap-1 text-xs;
+  color: var(--text-tertiary);
 }
 
-.window-count-badge:hover {
-  opacity: 1;
-}
-
-.session-active .window-count-badge {
-  opacity: 1;
-  background: rgba(88, 166, 255, 0.1);
-  color: var(--accent-primary);
+.stat-icon {
+  @apply w-3.5 h-3.5;
 }
 
 /* Session actions */
 .session-actions {
-  @apply flex items-center gap-0.5 opacity-0;
-  transition: opacity 150ms ease;
+  @apply flex items-center gap-2;
 }
 
-.session-item:hover .session-actions {
+.expand-btn {
+  @apply p-2 rounded-lg transition-all duration-200;
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-secondary);
+}
+
+.expand-btn:hover {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.expand-btn.expanded {
+  transform: rotate(180deg);
+}
+
+.action-group {
+  @apply flex items-center gap-1 opacity-0 transition-opacity duration-200;
+}
+
+.session-header:hover .action-group {
   opacity: 1;
 }
 
 .action-btn {
-  @apply p-0.5 rounded;
-  color: var(--text-tertiary);
-  transition: all 150ms ease;
-}
-
-.action-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  @apply p-1.5 rounded-lg transition-all duration-200;
+  background: rgba(148, 163, 184, 0.1);
   color: var(--text-secondary);
 }
 
-/* Session group */
-.session-group {
-  @apply relative;
+.action-btn:hover {
+  background: rgba(148, 163, 184, 0.2);
+  transform: scale(1.1);
 }
 
-/* Add some spacing between session groups */
-.session-group + .session-group {
-  margin-top: 2px;
+.action-btn.primary {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.action-btn.primary:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.action-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Windows container */
+.windows-container {
+  overflow: hidden;
 }
 </style>
