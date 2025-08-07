@@ -44,7 +44,7 @@ impl TmuxMonitor {
         self.check_for_changes().await;
         
         // Start monitoring loop
-        let mut interval = interval(Duration::from_millis(500)); // Check every 500ms for better responsiveness
+        let mut interval = interval(Duration::from_millis(250)); // Check every 250ms for better responsiveness
         
         loop {
             interval.tick().await;
