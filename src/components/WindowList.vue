@@ -72,34 +72,42 @@
         :key="window.index"
         v-memo="[window.name, window.active && props.isActiveSession, window.panes, isEditing(window)]"
         @click="$emit('select-window', window)"
-        class="window-item group"
+        class="window-item"
         :class="{ 'window-active': window.active && props.isActiveSession }"
       >
-        <div class="window-label">
-          <!-- File icon -->
-          <svg class="window-icon" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" clip-rule="evenodd" />
-          </svg>
+        <!-- Left content group -->
+        <div class="window-content">
+          <div class="window-label">
+            <!-- Window icon (square brackets) -->
+            <svg class="window-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+            </svg>
+            
+            <!-- Window name -->
+            <span v-if="!isEditing(window)" class="window-name">
+              {{ window.name }}
+            </span>
+            <input
+              v-else
+              v-model="editingName"
+              @keyup.enter="confirmRename(window)"
+              @keyup.escape="cancelEdit"
+              @blur="confirmRename(window)"
+              ref="editInput"
+              class="window-name-input"
+            />
+          </div>
           
-          <!-- Window name -->
-          <span v-if="!isEditing(window)" class="window-name">
-            {{ window.name }}
-          </span>
-          <input
-            v-else
-            v-model="editingName"
-            @keyup.enter="confirmRename(window)"
-            @keyup.escape="cancelEdit"
-            @blur="confirmRename(window)"
-            ref="editInput"
-            class="window-name-input"
-          />
-          
-          <!-- Pane count -->
-          <span class="pane-count">{{ window.panes }}</span>
+          <!-- Pane count badge -->
+          <div class="pane-count-badge" :title="`${window.panes} ${window.panes === 1 ? 'pane' : 'panes'}`">
+            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h2m10-16h-2a2 2 0 00-2 2v12a2 2 0 002 2h2m-6-16v16" />
+            </svg>
+            <span>{{ window.panes }}</span>
+          </div>
         </div>
         
-        <!-- Actions -->
+        <!-- Actions (right side) -->
         <div class="window-actions">
           <button
             @click.stop="startEdit(window)"
@@ -183,7 +191,7 @@ const loadWindows = async (showLoading: boolean = true): Promise<void> => {
       windows.value = loadedWindows
       hasLoadedInitial = true
     } else {
-      console.log('Session changed while loading windows, ignoring stale data')
+      // Session changed while loading windows, ignoring stale data
     }
   } catch (err) {
     // Only show error if we're still on the same session
@@ -227,7 +235,6 @@ const confirmCreateWindow = async (): Promise<void> => {
     await websocketApi.createWindow(props.sessionName, savedName || undefined)
     // Real update will come through WebSocket
   } catch (err) {
-    console.error('Failed to create window:', err)
     // Revert optimistic update
     windows.value = windows.value.filter(w => w.index !== optimisticWindow.index)
     alert('Failed to create window. Please try again.')
@@ -259,7 +266,6 @@ const confirmDelete = async (): Promise<void> => {
     await websocketApi.killWindow(props.sessionName, windowToRemove.index)
     // Real update will come through WebSocket
   } catch (err) {
-    console.error('Failed to kill window:', err)
     // Revert optimistic update
     windows.value = originalWindows
     alert('Failed to delete window. Please try again.')
@@ -290,7 +296,7 @@ const confirmRename = async (window: TmuxWindow): Promise<void> => {
       await websocketApi.renameWindow(props.sessionName, window.index, editingName.value)
       await loadWindows(false) // Don't show loading for rename
     } catch (err) {
-      console.error('Failed to rename window:', err)
+      // Failed to rename window
     }
   }
   cancelEdit()
@@ -313,7 +319,7 @@ onMounted(() => {
   // Listen for window selection success to refresh
   ws.onMessage<WindowSelectedMessage>('window-selected', (data) => {
     if (data.success) {
-      console.log('Window selected, refreshing windows for session:', props.sessionName)
+      // Window selected, refresh windows for session
       // Small delay to ensure tmux has updated
       setTimeout(() => {
         loadWindows(false) // Don't show loading for updates
@@ -324,12 +330,12 @@ onMounted(() => {
   // Listen for windows-list broadcasts but only update if it's for our session
   ws.onMessage<WindowsListMessage>('windows-list', (data) => {
     if (data.sessionName === props.sessionName) {
-      console.log('Received window list update for our session:', props.sessionName)
+      // Received window list update for our session
       windows.value = data.windows
       error.value = false
       loading.value = false
     } else {
-      console.log('Ignoring window list for different session:', data.sessionName, 'we are viewing:', props.sessionName)
+      // Ignoring window list for different session
     }
   })
 })
@@ -352,7 +358,7 @@ let sessionChangeTimeout: ReturnType<typeof setTimeout> | null = null
 // Watch for session name changes and reload windows
 watch(() => props.sessionName, (newSessionName, oldSessionName) => {
   if (newSessionName !== oldSessionName) {
-    console.log('Session changed from', oldSessionName, 'to', newSessionName, '- reloading windows')
+    // Session changed - reload windows
     
     // Cancel any pending load
     if (sessionChangeTimeout) {
@@ -381,12 +387,13 @@ defineExpose({
 <style scoped>
 /* Window list container */
 .window-list {
-  @apply pl-5;
+  /* Remove padding - windows will handle their own spacing */
 }
 
 /* Status messages */
 .window-status {
-  @apply text-xs pl-6 py-1;
+  @apply text-xs py-1;
+  padding-left: 32px;
   color: var(--text-tertiary);
 }
 
@@ -401,55 +408,76 @@ defineExpose({
 
 /* Window item */
 .window-item {
-  @apply relative flex items-center justify-between px-1 py-0.5 mx-1 rounded cursor-pointer;
+  @apply relative flex items-center justify-between py-1 cursor-pointer;
   @apply transition-all duration-150;
-  min-height: 24px;
+  min-height: 26px;
+  margin: 2px 0;
+  padding-left: 28px;
+  padding-right: 8px;
+  border-radius: 0 4px 4px 0;
+  gap: 8px;
 }
 
-.window-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+.window-item:hover:not(.window-active) {
+  background: rgba(255, 255, 255, 0.02);
+  padding-left: 30px;
 }
 
 .window-item.window-active {
-  background: rgba(88, 166, 255, 0.08);
+  background: rgba(88, 166, 255, 0.1);
+  padding-left: 32px;
+  margin: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .window-item.window-active::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 2px;
-  bottom: 2px;
-  width: 2px;
-  background: var(--accent-secondary);
-  border-radius: 1px;
-  opacity: 0.7;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 8px rgba(88, 166, 255, 0.4);
+}
+
+/* Window content wrapper */
+.window-content {
+  @apply flex items-center gap-2 flex-1;
 }
 
 /* Window label */
 .window-label {
-  @apply flex items-center gap-1.5 flex-1 min-w-0 pl-5;
+  @apply flex items-center gap-1.5 min-w-0;
 }
 
 /* Window icon */
 .window-icon {
   @apply w-3.5 h-3.5 flex-shrink-0;
-  color: var(--text-tertiary);
+  stroke: var(--text-tertiary);
+  transition: stroke 150ms ease;
 }
 
 .window-active .window-icon {
-  color: var(--accent-secondary);
+  stroke: var(--text-primary);
 }
 
 /* Window name */
 .window-name {
-  @apply text-xs truncate flex-1;
+  @apply text-xs truncate;
   color: var(--text-secondary);
   font-size: 12px;
+  transition: color 150ms ease;
+  flex: 1;
 }
 
 .window-active .window-name {
   color: var(--text-primary);
+  font-weight: 500;
 }
 
 .window-name-input {
@@ -463,13 +491,24 @@ defineExpose({
   min-width: 100px;
 }
 
-/* Pane count */
-.pane-count {
-  @apply px-1 py-0 text-xs rounded ml-auto;
-  font-size: 10px;
+/* Pane count badge */
+.pane-count-badge {
+  @apply flex items-center gap-0.5 px-1.5 py-0.5 rounded-full;
   background: var(--bg-tertiary);
   color: var(--text-tertiary);
+  font-size: 10px;
+  opacity: 0.6;
+  transition: all 150ms ease;
+}
+
+.pane-count-badge:hover {
   opacity: 0.8;
+}
+
+.window-active .pane-count-badge {
+  opacity: 0.9;
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--text-secondary);
 }
 
 /* Window actions */

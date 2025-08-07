@@ -181,7 +181,7 @@ const deleteModalTitle = ref('')
 const deleteModalMessage = ref('')
 
 const handleCreate = (): void => {
-  console.log('handleCreate called')
+  // Handle create new session
   showCreateModal.value = true
   newSessionName.value = `s${Date.now().toString().slice(-6)}`
   nextTick(() => {
@@ -192,7 +192,7 @@ const handleCreate = (): void => {
 
 const confirmCreate = (): void => {
   if (newSessionName.value.trim()) {
-    console.log('Creating session with name:', newSessionName.value)
+    // Create session with name
     emit('create', newSessionName.value.trim())
     showCreateModal.value = false
     newSessionName.value = ''
@@ -205,10 +205,10 @@ const cancelCreate = (): void => {
 }
 
 const handleKill = (sessionName: string): void => {
-  console.log('handleKill called for session:', sessionName)
+  // Handle kill session request
   const session = props.sessions.find(s => s.name === sessionName)
   if (!session) {
-    console.error('Session not found:', sessionName)
+    // Session not found
     return
   }
   
@@ -223,7 +223,7 @@ const handleKill = (sessionName: string): void => {
 
 const confirmDelete = (): void => {
   if (sessionToDelete.value) {
-    console.log('User confirmed kill for session:', sessionToDelete.value)
+    // User confirmed kill for session
     emit('kill', sessionToDelete.value)
     showDeleteModal.value = false
     sessionToDelete.value = null
@@ -231,7 +231,7 @@ const confirmDelete = (): void => {
 }
 
 const cancelDelete = (): void => {
-  console.log('User cancelled delete')
+  // User cancelled delete
   showDeleteModal.value = false
   sessionToDelete.value = null
 }
