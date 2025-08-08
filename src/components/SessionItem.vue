@@ -66,7 +66,6 @@
         </div>
       </template>
     </div>
-    
     <div v-if="showWindows && !isCollapsed" class="windows">
       <WindowList
         :session-name="session.name"
@@ -164,7 +163,6 @@ const handleCreateWindow = (): void => {
 
 <style scoped>
 .session-wrapper {
-  margin-bottom: 2px;
 }
 
 .session-item {
@@ -289,7 +287,6 @@ const handleCreateWindow = (): void => {
 
 /* Windows */
 .windows {
-  margin-left: 16px;
   border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 </style>

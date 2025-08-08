@@ -75,7 +75,6 @@
     <div v-else-if="windows.length === 0" class="window-status">
       No windows
     </div>
-    
     <!-- Window list -->
     <div v-else>
       <div
@@ -342,11 +341,10 @@ defineExpose({
 
 <style scoped>
 .window-list {
-  padding: 4px 0;
 }
 
 .window-status {
-  padding: 8px 16px;
+  padding: 0 16px;
   font-size: 11px;
   color: var(--text-tertiary);
   opacity: 0.6;
